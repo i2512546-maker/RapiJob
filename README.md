@@ -27,26 +27,73 @@ Base de datos SQL completa para una plataforma de contratación de servicios té
 - `disponibilidad_tecnicos`: Horarios de trabajo
 - `auditoria_logs`: Trazabilidad de cambios
 
-## Instalación
+## Instalación Rápida
 
-1. Importar el archivo SQL en MySQL
-2. Crear la base de datos ejecutando el script completo
-3. Los datos iniciales se cargan automáticamente
-
-```sql
-mysql -u root -p < plataforma_servicios_tecnicos.sql
+### Con Docker (Recomendado)
+```bash
+docker-compose up -d
 ```
 
-## Estructura de Archivo
+Esto inicia:
+- MySQL en puerto 3306
+- FastAPI en puerto 8000
+
+Acceder a la documentación: http://localhost:8000/docs
+
+### Local
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+## Estructura del Proyecto
 
 ```
-plataforma_servicios_tecnicos.sql
-├── Creación de base de datos
-├── Definición de tablas
-├── Inserts de datos iniciales
-├── Vistas útiles
-└── Índices y relaciones
+rapijob/
+├── database/
+│   └── plataforma_servicios_tecnicos.sql
+├── backend/                    # API FastAPI
+│   ├── app/
+│   │   ├── models/            # SQLAlchemy models
+│   │   ├── schemas/           # Pydantic schemas
+│   │   ├── routes/            # Endpoints
+│   │   └── middleware/        # Auth, RBAC
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── requirements.txt
+│   └── Dockerfile
+├── docker-compose.yml
+└── README.md
 ```
+
+## Stack Tecnológico (Beta)
+
+- **Backend**: FastAPI + Python 3.11
+- **Base de Datos**: MySQL 8.0
+- **ORM**: SQLAlchemy
+- **Validación**: Pydantic
+- **Autenticación**: JWT + bcrypt
+- **Containerización**: Docker
+
+## API Endpoints Base
+
+**Autenticación:**
+- `POST /api/auth/registro` - Registrar
+- `POST /api/auth/login` - Login
+- `GET /api/auth/me` - Perfil actual
+
+**Servicios:**
+- `GET /api/servicios/` - Listar todos
+- `GET /api/servicios/{id}` - Obtener uno
+
+**Órdenes:**
+- `POST /api/ordenes/` - Crear (clientes)
+- `GET /api/ordenes/` - Mis órdenes
+- `PATCH /api/ordenes/{id}/aceptar` - Aceptar (técnicos)
 
 ## Versión
 
