@@ -81,11 +81,8 @@ class MetodoPago(Base):
 
     id_metodo = Column(Integer, primary_key=True, index=True)
     nombre_metodo = Column(String(50), unique=True, nullable=False)
-    descripcion = Column(String(255))
     estado = Column(Enum('activo', 'inactivo'), default='activo')
-    require_verificacion = Column(Boolean, default=False)
     comision_porcentaje = Column(Numeric(5, 2), default=0.00)
-    fecha_creacion = Column(DateTime, default=datetime.utcnow)
 
     # Relaciones
     pagos = relationship("Pago", back_populates="metodo")
@@ -102,7 +99,6 @@ class SlotCita(Base):
     capacidad_maxima = Column(Integer, default=1)
     reservas_actuales = Column(Integer, default=0)
     estado = Column(Enum('disponible', 'lleno', 'bloqueado'), default='disponible')
-    fecha_creacion = Column(DateTime, default=datetime.utcnow)
     
     INDEX('idx_fecha', 'fecha')
     INDEX('idx_estado', 'estado')
