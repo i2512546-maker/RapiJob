@@ -75,6 +75,42 @@ class Servicio(Base):
     categoria = relationship("CategoriaServicio", back_populates="servicios")
 
 
+class MetodoPago(Base):
+    """Modelo de método de pago (administrador)"""
+    __tablename__ = "metodos_pago"
+
+    id_metodo = Column(Integer, primary_key=True, index=True)
+    nombre_metodo = Column(String(50), unique=True, nullable=False)
+    descripcion = Column(String(255))
+    estado = Column(Enum('activo', 'inactivo'), default='activo')
+    require_verificacion = Column(Boolean, default=False)
+    comision_porcentaje = Column(Numeric(5, 2), default=0.00)
+    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+
+    # Relaciones
+    pagos = relationship("Pago", back_populates="metodo")
+
+
+class SlotCita(Base):
+    """Modelo de slots de citas disponibles (administrador)"""
+    __tablename__ = "slots_citas"
+
+    id_slot = Column(Integer, primary_key=True, index=True)
+    fecha = Column(DateTime, nullable=False)
+    hora_inicio = Column(DateTime, nullable=False)
+    hora_fin = Column(DateTime, nullable=False)
+    capacidad_maxima = Column(Integer, default=1)
+    reservas_actuales = Column(Integer, default=0)
+    estado = Column(Enum('disponible', 'lleno', 'bloqueado'), default='disponible')
+    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    
+    INDEX('idx_fecha', 'fecha')
+    INDEX('idx_estado', 'estado')
+
+    # Relaciones
+    ordenes = relationship("OrdenTrabajo", back_populates="slot")
+
+
 class OrdenTrabajo(Base):
     """Modelo de orden de trabajo"""
     __tablename__ = "ordenes_trabajo"
@@ -83,31 +119,69 @@ class OrdenTrabajo(Base):
     id_cliente = Column(Integer, nullable=False)
     id_tecnico = Column(Integer)
     id_servicio = Column(Integer, nullable=False)
+    id_slot_cita = Column(Integer, nullable=False)  # Referencia a slot disponible
+    id_metodo_pago = Column(Integer)  # Referencia a tabla de métodos
+    
     fecha_solicitud = Column(DateTime, default=datetime.utcnow)
-    fecha_programada = Column(DateTime, nullable=False)
     fecha_completada = Column(DateTime)
+    
     ubicacion_servicio = Column(String(255), nullable=False)
-    descripcion_problema = Column(Text)
-    notas_adicionales = Column(Text)
+    descripcion_problema = Column(String(1000), nullable=False)  # Máx 1000 caracteres
+    notas_adicionales = Column(String(500))  # Máx 500 caracteres
+    
+    # Precios
+    precio_base = Column(Numeric(10, 2), nullable=False)  # Del servicio
+    precio_negociado = Column(Numeric(10, 2))  # NULL = usa base, si tiene valor = precio final
+    precio_final = Column(Numeric(10, 2))  # Calculado automáticamente
+    
+    # Estado
     estado_orden = Column(Enum('pendiente', 'aceptada', 'en_progreso', 'completada', 'cancelada'), default='pendiente')
-    precio_final = Column(Numeric(10, 2))
-    metodo_pago = Column(Enum('efectivo', 'tarjeta', 'transferencia', 'billetera_digital'), default='efectivo')
+    razon_cancelacion = Column(String(255))
+    
+    # Pago
+    estado_pago = Column(Enum('pendiente', 'procesando', 'completado', 'rechazado'), default='pendiente')
     fecha_pago = Column(DateTime)
+    referencia_transaccion = Column(String(100))
+    
+    fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    
+    # Índices
+    INDEX('idx_cliente', 'id_cliente')
+    INDEX('idx_tecnico', 'id_tecnico')
+    INDEX('idx_estado', 'estado_orden')
+
+    # Relaciones
+    slot = relationship("SlotCita", back_populates="ordenes")
+    metodo = relationship("MetodoPago", back_populates="pagos")
 
 
 class Pago(Base):
-    """Modelo de pago"""
+    """Modelo de pago (registro de transacciones)"""
     __tablename__ = "pagos"
 
     id_pago = Column(Integer, primary_key=True, index=True)
     id_orden = Column(Integer, unique=True, nullable=False)
+    id_metodo = Column(Integer, nullable=False)  # Referencia a métodos_pago
+    
     monto = Column(Numeric(10, 2), nullable=False)
-    metodo_pago = Column(Enum('efectivo', 'tarjeta_credito', 'tarjeta_debito', 'transferencia', 'billetera_digital'), default='efectivo')
+    comision = Column(Numeric(10, 2), default=0.00)
+    monto_neto = Column(Numeric(10, 2))  # monto - comision
+    
     estado_pago = Column(Enum('pendiente', 'procesando', 'completado', 'rechazado', 'reembolsado'), default='pendiente')
-    numero_transaccion = Column(String(100))
+    numero_transaccion = Column(String(100), unique=True)
     referencia_banco = Column(String(100))
+    razon_rechazo = Column(String(255))
+    
     fecha_pago = Column(DateTime)
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
+    fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Índices
+    INDEX('idx_estado', 'estado_pago')
+    INDEX('idx_fecha', 'fecha_pago')
+
+    # Relaciones
+    metodo = relationship("MetodoPago", back_populates="pagos")
 
 
 class ResenaCalificacion(Base):

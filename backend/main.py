@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import get_settings
 from database import Base, engine
-from app.routes import auth, servicios, ordenes
+from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas
 
 # Configuración
 settings = get_settings()
@@ -30,6 +30,8 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(servicios.router)
 app.include_router(ordenes.router)
+app.include_router(metodos_pago.router)
+app.include_router(slots_citas.router)
 
 
 @app.get("/")
