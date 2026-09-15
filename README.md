@@ -1,10 +1,10 @@
-# Plataforma de Contratación de Servicios Técnicos
+# RapiJob - Plataforma de Contratación de Servicios Técnicos
 
 Base de datos SQL completa para una plataforma de contratación de servicios técnicos.
 
 ## Descripción
 
-Sistema integral de gestión para conectar técnicos con clientes que necesitan servicios tecnológicos.
+**RapiJob** es un sistema integral de gestión para conectar técnicos con clientes que necesitan servicios tecnológicos de forma rápida y eficiente.
 
 ## Características
 
