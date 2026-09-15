@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: rapijob-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: plataforma_servicios_tecnicos
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/plataforma_servicios_tecnicos.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - rapijob-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rapijob-backend
+    environment:
+      DATABASE_URL: mysql+mysqlconnector://root:root@mysql:3306/plataforma_servicios_tecnicos
+      SECRET_KEY: dev-secret-key-beta
+      DEBUG: "True"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    volumes:
+      - ./backend:/app
+    networks:
+      - rapijob-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  mysql_data:
+
+networks:
+  rapijob-network:
+    driver: bridge
