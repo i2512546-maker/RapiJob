@@ -1,0 +1,44 @@
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Configuraciones locales
+.env
+.env.local
+config.local.*
+
+# Archivos temporales
+*.tmp
+*.log
+*.temp
+
+# Node (si se usa)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Base de datos
+*.db
+*.sqlite3
+*.backup
+
+# Otros
+.gradle/
+build/
+dist/
