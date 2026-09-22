@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="RapiJob conecta clientes con técnicos confiables para resolver cualquier necesidad." />
+    <title>RapiJob | Servicios confiables, sin complicaciones</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <header class="topbar">
+      <div class="container nav">
+        <a class="brand" href="#" aria-label="RapiJob inicio">
+          <span class="brand-mark">R</span>
+          <span>Rapi<span>Job</span></span>
+        </a>
+        <nav class="desktop-nav" aria-label="Navegación principal">
+          <a href="#servicios">Servicios</a>
+          <a href="#como-funciona">Cómo funciona</a>
+          <a href="#acceso">Acceso</a>
+        </nav>
+        <div class="nav-actions">
+          <span id="userGreeting" class="user-greeting hidden"></span>
+          <button id="logoutBtn" class="button button-ghost hidden">Cerrar sesión</button>
+          <a class="button button-primary nav-cta" href="#acceso">Comenzar <span>↗</span></a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero container">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="pulse-dot"></span> La forma inteligente de resolverlo</div>
+          <h1>Tu próximo trabajo, <em>a un clic.</em></h1>
+          <p class="hero-text">Encuentra profesionales verificados para cada tarea. Rápido, transparente y siempre cerca de ti.</p>
+          <div class="hero-actions">
+            <a href="#servicios" class="button button-primary button-large">Explorar servicios <span>→</span></a>
+            <a href="#como-funciona" class="text-link">Descubre cómo funciona <span>↓</span></a>
+          </div>
+          <div class="trust-row">
+            <div class="avatar-stack"><span>ML</span><span>JR</span><span>AC</span><span>+2k</span></div>
+            <div><strong>+2,000 clientes felices</strong><small>Únete a nuestra comunidad</small></div>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="orbit orbit-large"></div>
+          <div class="orbit orbit-small"></div>
+          <div class="hero-card hero-card-main">
+            <div class="mini-card-top"><span class="status-dot"></span><span>Servicio en curso</span><span class="more">•••</span></div>
+            <div class="worker-avatar">👩🏽‍🔧</div>
+            <h3>Reparación eléctrica</h3>
+            <p>Mariana López <span class="verified">✓ Verificada</span></p>
+            <div class="rating">★★★★★ <b>4.9</b> <span>(128 reseñas)</span></div>
+            <div class="card-divider"></div>
+            <div class="appointment"><span class="calendar-icon">◷</span><div><small>Próxima disponibilidad</small><strong>Hoy, 14:30 – 16:00</strong></div></div>
+          </div>
+          <div class="floating-card floating-price"><span class="floating-icon">↗</span><div><small>Desde</small><strong>$25.00</strong></div></div>
+          <div class="floating-card floating-check"><span>✓</span><div><strong>100% seguro</strong><small>Profesionales verificados</small></div></div>
+        </div>
+      </section>
+
+      <section class="stats-bar container">
+        <div><strong>4.9<span>/5</span></strong><small>Valoración media</small></div>
+        <div><strong>2,500<span>+</span></strong><small>Profesionales activos</small></div>
+        <div><strong>15k<span>+</span></strong><small>Servicios completados</small></div>
+        <div><strong>24<span>h</span></strong><small>Soporte disponible</small></div>
+      </section>
+
+      <section id="servicios" class="section container">
+        <div class="section-heading">
+          <div><div class="eyebrow">TODO LO QUE NECESITAS</div><h2>Soluciones para <em>cada día.</em></h2></div>
+          <button id="refreshServicesBtn" class="button button-outline">Actualizar <span>↻</span></button>
+        </div>
+        <div id="servicesList" class="service-grid"><div class="loading-state"><span class="spinner"></span>Cargando servicios...</div></div>
+      </section>
+
+      <section id="como-funciona" class="how-section">
+        <div class="container">
+          <div class="section-heading centered"><div><div class="eyebrow">SIMPLE Y TRANSPARENTE</div><h2>Así de <em>fácil</em> funciona.</h2></div></div>
+          <div class="steps-grid">
+            <article class="step"><span class="step-number">01</span><div class="step-icon">⌕</div><h3>Busca lo que necesitas</h3><p>Explora servicios y encuentra al profesional ideal para tu proyecto.</p></article>
+            <article class="step"><span class="step-number">02</span><div class="step-icon">◈</div><h3>Elige con confianza</h3><p>Compara perfiles, precios y reseñas de clientes reales.</p></article>
+            <article class="step"><span class="step-number">03</span><div class="step-icon">✓</div><h3>Disfruta el resultado</h3><p>Coordina el servicio y deja que un experto se encargue.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="acceso" class="access-section container">
+        <div class="access-copy"><div class="eyebrow">EMPIEZA HOY</div><h2>Haz que las cosas <em>sucedan.</em></h2><p>Crea tu cuenta gratis y encuentra la ayuda que necesitas en minutos.</p><div id="authMessage" class="message" role="status"></div></div>
+        <div class="auth-card">
+          <div class="auth-tabs"><button class="tab active" data-tab="login">Iniciar sesión</button><button class="tab" data-tab="register">Crear cuenta</button></div>
+          <form id="loginForm" class="stack-form auth-form">
+            <label>Correo electrónico<input type="email" id="loginEmail" placeholder="tu@correo.com" required /></label>
+            <label>Contraseña<input type="password" id="loginPassword" placeholder="••••••••" required /></label>
+            <button type="submit" class="button button-primary">Entrar a mi cuenta <span>→</span></button>
+          </form>
+          <form id="registerForm" class="stack-form auth-form hidden">
+            <div class="two-col"><label>Nombre<input type="text" id="regNombre" placeholder="Tu nombre" required /></label><label>Apellido<input type="text" id="regApellido" placeholder="Tu apellido" required /></label></div>
+            <label>Correo electrónico<input type="email" id="regEmail" placeholder="tu@correo.com" required /></label>
+            <div class="two-col"><label>Teléfono<input type="tel" id="regTelefono" placeholder="+57..." /></label><label>Tipo<select id="regTipoUsuario" required><option value="cliente">Cliente</option><option value="tecnico">Técnico</option></select></label></div>
+            <input type="hidden" id="regDocumento" value="" /><label>Contraseña<input type="password" id="regPassword" placeholder="Mínimo 8 caracteres" minlength="8" required /></label>
+            <button type="submit" class="button button-primary">Crear mi cuenta <span>→</span></button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer"><div class="container footer-inner"><a class="brand" href="#"><span class="brand-mark">R</span><span>Rapi<span>Job</span></span></a><p>Conectando personas. Resolviendo necesidades.</p><div class="api-config"><label for="apiBaseInput">API</label><input id="apiBaseInput" type="url" value="http://localhost:8000" placeholder="https://tu-api.onrender.com" /><button id="saveApiBtn" class="button button-small">Guardar</button></div><small>© 2024 RapiJob. Todos los derechos reservados.</small></div></footer>
+    <div id="toast" class="toast" role="alert"></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

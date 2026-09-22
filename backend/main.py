@@ -41,7 +41,7 @@ app.include_router(ordenes.router)
 app.include_router(metodos_pago.router)
 app.include_router(slots_citas.router)
 
-FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend-static")
 
