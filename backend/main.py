@@ -9,8 +9,11 @@ from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas
 # Configuración
 settings = get_settings()
 
-# Crear tablas (solo en desarrollo)
-Base.metadata.create_all(bind=engine)
+# Crear tablas si la base de datos está disponible
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as exc:  # pragma: no cover - startup safety for Render/managed DB
+    print(f"Advertencia: no se pudo inicializar la base de datos al arrancar: {exc}")
 
 # Crear aplicación
 app = FastAPI(
