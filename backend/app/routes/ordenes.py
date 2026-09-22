@@ -106,7 +106,10 @@ async def obtener_ordenes(
     if current_user.tipo_usuario == 'cliente':
         ordenes = db.query(OrdenTrabajo).filter(OrdenTrabajo.id_cliente == current_user.user_id).all()
     else:  # técnico
-        ordenes = db.query(OrdenTrabajo).filter(OrdenTrabajo.id_tecnico == current_user.user_id).all()
+        ordenes = db.query(OrdenTrabajo).filter(
+            (OrdenTrabajo.id_tecnico == current_user.user_id) |
+            ((OrdenTrabajo.id_tecnico.is_(None)) & (OrdenTrabajo.estado_orden == 'pendiente'))
+        ).all()
     
     return ordenes
 

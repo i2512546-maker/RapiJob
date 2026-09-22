@@ -80,6 +80,23 @@
         <div id="servicesList" class="service-grid"><div class="loading-state"><span class="spinner"></span>Cargando servicios...</div></div>
       </section>
 
+      <section id="contratar" class="booking-section container hidden">
+        <div class="section-heading"><div><div class="eyebrow">CONTRATAR UN TÉCNICO</div><h2>Solicita ayuda <em>en minutos.</em></h2></div></div>
+        <form id="orderForm" class="booking-card">
+          <div class="two-col"><label>Servicio<select id="serviceSelect" required><option value="">Selecciona un servicio</option></select></label><label>Horario disponible<select id="slotSelect" required><option value="">Cargando horarios...</option></select></label></div>
+          <div class="two-col"><label>Método de pago<select id="paymentSelect" required><option value="">Cargando métodos...</option></select></label><label>Ubicación<input id="ubicacion" required placeholder="Dirección donde se realizará el servicio" /></label></div>
+          <label>¿Qué necesitas?<textarea id="descripcion" required minlength="10" placeholder="Describe el trabajo que necesitas..."></textarea></label>
+          <label>Notas adicionales<textarea id="notas" placeholder="Instrucciones opcionales"></textarea></label>
+          <button type="submit" class="button button-primary">Contratar técnico <span>→</span></button>
+          <div id="orderMessage" class="message"></div>
+        </form>
+      </section>
+
+      <section id="technicianPanel" class="section container hidden">
+        <div class="section-heading"><div><div class="eyebrow">PANEL DEL TÉCNICO</div><h2>Solicitudes <em>disponibles.</em></h2></div><button id="refreshOrdersBtn" class="button button-outline">Actualizar ↻</button></div>
+        <div id="ordersList" class="orders-list"></div>
+      </section>
+
       <section id="como-funciona" class="how-section">
         <div class="container">
           <div class="section-heading centered"><div><div class="eyebrow">SIMPLE Y TRANSPARENTE</div><h2>Así de <em>fácil</em> funciona.</h2></div></div>

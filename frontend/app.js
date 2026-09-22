@@ -16,6 +16,57 @@ function getApiBase() {
   return (localStorage.getItem(API_STORAGE_KEY) || apiBaseInput.value || window.location.origin || 'http://localhost:8000').trim().replace(/\/$/, '');
 }
 
+function renderServiceOptions() {
+  $('#serviceSelect').innerHTML = '<option value="">Selecciona un servicio</option>' +
+    state.services.map((service) => `<option value="${service.id_servicio}">${escapeHtml(service.nombre_servicio)} · $${Number(service.precio_base || 0).toFixed(2)}</option>`).join('');
+}
+
+async function loadBookingOptions() {
+  if (!state.token || state.user?.tipo_usuario !== 'cliente') return;
+  try {
+    const [slots, payments] = await Promise.all([
+      apiFetch('/api/admin/slots-citas/'),
+      apiFetch('/api/admin/metodos-pago/'),
+    ]);
+    $('#slotSelect').innerHTML = '<option value="">Selecciona un horario</option>' +
+      slots.map((slot) => `<option value="${slot.id_slot}">${new Date(slot.hora_inicio).toLocaleString('es-CO')} - ${new Date(slot.hora_fin).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</option>`).join('');
+    $('#paymentSelect').innerHTML = '<option value="">Selecciona un método</option>' +
+      payments.map((payment) => `<option value="${payment.id_metodo}">${escapeHtml(payment.nombre_metodo)}</option>`).join('');
+  } catch (error) { showToast(error.message); }
+}
+
+async function handleCreateOrder(event) {
+  event.preventDefault();
+  try {
+    const data = await apiFetch('/api/ordenes/', { method: 'POST', body: JSON.stringify({
+      id_servicio: Number($('#serviceSelect').value),
+      id_slot_cita: Number($('#slotSelect').value),
+      id_metodo_pago: Number($('#paymentSelect').value),
+      ubicacion_servicio: $('#ubicacion').value.trim(),
+      descripcion_problema: $('#descripcion').value.trim(),
+      notas_adicionales: $('#notas').value.trim() || null,
+    }) });
+    $('#orderForm').reset();
+    $('#orderMessage').textContent = `Solicitud creada correctamente. Orden #${data.id_orden}`;
+    $('#orderMessage').className = 'message success';
+    showToast('Solicitud enviada a los técnicos');
+  } catch (error) {
+    $('#orderMessage').textContent = error.message;
+    $('#orderMessage').className = 'message error';
+  }
+}
+
+async function loadOrders() {
+  if (!state.token || state.user?.tipo_usuario !== 'tecnico') return;
+  try {
+    const orders = await apiFetch('/api/ordenes/');
+    $('#ordersList').innerHTML = orders.length ? orders.map((order) => `<article class="order-card"><span class="order-status">${escapeHtml(order.estado_orden)}</span><h3>Solicitud #${order.id_orden}</h3><p>${escapeHtml(order.descripcion_problema)}</p><p><strong>Ubicación:</strong> ${escapeHtml(order.ubicacion_servicio)}<br><strong>Presupuesto:</strong> $${Number(order.precio_final || order.precio_base).toFixed(2)}</p>${order.estado_orden === 'pendiente' ? `<button class="button button-primary accept-order" data-id="${order.id_orden}">Aceptar solicitud</button>` : ''}</article>`).join('') : '<div class="empty-state">No hay solicitudes disponibles.</div>';
+    document.querySelectorAll('.accept-order').forEach((button) => button.addEventListener('click', async () => {
+      try { await apiFetch(`/api/ordenes/${button.dataset.id}/aceptar`, { method: 'PATCH' }); showToast('Solicitud aceptada'); loadOrders(); } catch (error) { showToast(error.message); }
+    }));
+  } catch (error) { showToast(error.message); }
+}
+
 function showMessage(text, type = 'info') {
   const element = $('#authMessage');
   element.textContent = text;
@@ -51,6 +102,10 @@ function updateAuthUI() {
   $('#userGreeting').classList.toggle('hidden', !loggedIn);
   $('#userGreeting').textContent = loggedIn ? `Hola, ${state.user?.nombre || 'bienvenido'}` : '';
   $('.nav-cta').textContent = loggedIn ? 'Solicitar servicio ↗' : 'Comenzar ↗';
+  $('#contratar').classList.toggle('hidden', !loggedIn || state.user?.tipo_usuario !== 'cliente');
+  $('#technicianPanel').classList.toggle('hidden', !loggedIn || state.user?.tipo_usuario !== 'tecnico');
+  if (loggedIn && state.user?.tipo_usuario === 'cliente') loadBookingOptions();
+  if (loggedIn && state.user?.tipo_usuario === 'tecnico') loadOrders();
 }
 
 function renderServices(services) {
@@ -76,6 +131,7 @@ async function loadServices() {
   try {
     state.services = await apiFetch('/api/servicios/');
     renderServices(state.services);
+    renderServiceOptions();
   } catch (error) {
     servicesList.innerHTML = '<div class="empty-state">Inicia sesión para consultar los servicios.</div>';
     if (state.token) showToast(error.message);
@@ -143,9 +199,11 @@ function init() {
   updateAuthUI(); initTabs(); loadServices(); loadProfile();
   $('#loginForm').addEventListener('submit', handleLogin);
   $('#registerForm').addEventListener('submit', handleRegister);
+  $('#orderForm').addEventListener('submit', handleCreateOrder);
   $('#logoutBtn').addEventListener('click', () => logout());
   $('#refreshServicesBtn').addEventListener('click', loadServices);
   $('#saveApiBtn').addEventListener('click', () => { localStorage.setItem(API_STORAGE_KEY, apiBaseInput.value.trim().replace(/\/$/, '')); showToast('URL de API guardada'); loadServices(); });
+  $('#refreshOrdersBtn').addEventListener('click', loadOrders);
 }
 
 init();
