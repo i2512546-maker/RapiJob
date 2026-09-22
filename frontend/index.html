@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RapiJob</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container nav">
+        <div class="brand">RapiJob</div>
+        <div class="nav-actions">
+          <label class="api-label">
+            API
+            <input id="apiBaseInput" type="text" value="http://localhost:8000" placeholder="http://localhost:8000" />
+          </label>
+          <button id="saveApiBtn" class="secondary-btn">Guardar</button>
+          <button id="logoutBtn" class="ghost-btn hidden">Cerrar sesión</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container dashboard">
+      <section class="panel auth-panel">
+        <h2>Acceso</h2>
+
+        <form id="loginForm" class="stack-form">
+          <h3>Iniciar sesión</h3>
+          <input type="email" id="loginEmail" placeholder="correo@ejemplo.com" required />
+          <input type="password" id="loginPassword" placeholder="Contraseña" required />
+          <button type="submit">Entrar</button>
+        </form>
+
+        <form id="registerForm" class="stack-form">
+          <h3>Crear cuenta</h3>
+          <div class="two-col">
+            <input type="text" id="regNombre" placeholder="Nombre" required />
+            <input type="text" id="regApellido" placeholder="Apellido" required />
+          </div>
+          <input type="email" id="regEmail" placeholder="Correo electrónico" required />
+          <input type="tel" id="regTelefono" placeholder="Teléfono" />
+          <select id="regTipoUsuario" required>
+            <option value="cliente">Cliente</option>
+            <option value="tecnico">Técnico</option>
+          </select>
+          <input type="text" id="regDocumento" placeholder="Documento de identidad" />
+          <input type="password" id="regPassword" placeholder="Contraseña" required />
+          <button type="submit" class="secondary-btn">Registrarse</button>
+        </form>
+
+        <div id="authMessage" class="message"></div>
+      </section>
+
+      <section class="panel main-panel">
+        <div class="panel-head">
+          <h2>Servicios disponibles</h2>
+          <button id="refreshServicesBtn" class="secondary-btn">Actualizar</button>
+        </div>
+        <div id="servicesList" class="service-list"></div>
+      </section>
+
+      <section class="panel order-panel">
+        <h2>Crear orden</h2>
+        <form id="orderForm" class="stack-form">
+          <select id="serviceSelect" required>
+            <option value="">Selecciona un servicio</option>
+          </select>
+
+          <input type="number" id="slotId" placeholder="ID del slot de cita" required />
+          <input type="number" id="metodoPagoId" placeholder="ID del método de pago" required />
+          <input type="text" id="ubicacion" placeholder="Ubicación del servicio" required />
+          <textarea id="descripcion" rows="4" placeholder="Describe el problema o necesidad" required></textarea>
+          <textarea id="notas" rows="3" placeholder="Notas adicionales (opcional)"></textarea>
+          <input type="number" id="precioNegociado" step="0.01" placeholder="Precio negociado (opcional)" />
+          <button type="submit">Solicitar servicio</button>
+        </form>
+        <div id="orderMessage" class="message"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

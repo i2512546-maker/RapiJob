@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: rapijob-api
+    env: python
+    rootDir: backend
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:$PORT --workers 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        generateValue: true
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: DEBUG
+        value: "False"
+      - key: APP_NAME
+        value: RapiJob Beta
+      - key: PORT
+        value: "10000"

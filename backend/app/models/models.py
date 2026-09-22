@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Enum, DateTime, Boolean, Text, Numeric
+from sqlalchemy import Column, Integer, String, Float, Enum, DateTime, Boolean, Text, Numeric, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -91,6 +91,10 @@ class MetodoPago(Base):
 class SlotCita(Base):
     """Modelo de slots de citas disponibles (administrador)"""
     __tablename__ = "slots_citas"
+    __table_args__ = (
+        Index('idx_fecha', 'fecha'),
+        Index('idx_estado', 'estado'),
+    )
 
     id_slot = Column(Integer, primary_key=True, index=True)
     fecha = Column(DateTime, nullable=False)
@@ -99,9 +103,6 @@ class SlotCita(Base):
     capacidad_maxima = Column(Integer, default=1)
     reservas_actuales = Column(Integer, default=0)
     estado = Column(Enum('disponible', 'lleno', 'bloqueado'), default='disponible')
-    
-    INDEX('idx_fecha', 'fecha')
-    INDEX('idx_estado', 'estado')
 
     # Relaciones
     ordenes = relationship("OrdenTrabajo", back_populates="slot")
@@ -110,6 +111,11 @@ class SlotCita(Base):
 class OrdenTrabajo(Base):
     """Modelo de orden de trabajo"""
     __tablename__ = "ordenes_trabajo"
+    __table_args__ = (
+        Index('idx_cliente', 'id_cliente'),
+        Index('idx_tecnico', 'id_tecnico'),
+        Index('idx_estado', 'estado_orden'),
+    )
 
     id_orden = Column(Integer, primary_key=True, index=True)
     id_cliente = Column(Integer, nullable=False)
@@ -140,11 +146,6 @@ class OrdenTrabajo(Base):
     referencia_transaccion = Column(String(100))
     
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
-    
-    # Índices
-    INDEX('idx_cliente', 'id_cliente')
-    INDEX('idx_tecnico', 'id_tecnico')
-    INDEX('idx_estado', 'estado_orden')
 
     # Relaciones
     slot = relationship("SlotCita", back_populates="ordenes")
@@ -154,6 +155,10 @@ class OrdenTrabajo(Base):
 class Pago(Base):
     """Modelo de pago (registro de transacciones)"""
     __tablename__ = "pagos"
+    __table_args__ = (
+        Index('idx_estado', 'estado_pago'),
+        Index('idx_fecha', 'fecha_pago'),
+    )
 
     id_pago = Column(Integer, primary_key=True, index=True)
     id_orden = Column(Integer, unique=True, nullable=False)
@@ -171,10 +176,6 @@ class Pago(Base):
     fecha_pago = Column(DateTime)
     fecha_creacion = Column(DateTime, default=datetime.utcnow)
     fecha_actualizacion = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Índices
-    INDEX('idx_estado', 'estado_pago')
-    INDEX('idx_fecha', 'fecha_pago')
 
     # Relaciones
     metodo = relationship("MetodoPago", back_populates="pagos")

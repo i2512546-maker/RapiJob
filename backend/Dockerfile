@@ -5,19 +5,23 @@ WORKDIR /app
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     gcc \
+    default-libmysqlclient-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements
 COPY requirements.txt .
 
 # Instalar dependencias Python
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copiar código
 COPY . .
 
+ENV PYTHONUNBUFFERED=1 \
+    PORT=10000
+
 # Exponer puerto
-EXPOSE 8000
+EXPOSE 10000
 
 # Comando de inicio
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:${PORT:-10000} --workers 2"]
