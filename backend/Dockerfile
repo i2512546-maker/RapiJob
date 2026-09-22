@@ -24,4 +24,4 @@ ENV PYTHONUNBUFFERED=1 \
 EXPOSE 10000
 
 # Comando de inicio
-CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:${PORT:-10000} --workers 2"]
+CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:${PORT:-10000} --workers 1"]

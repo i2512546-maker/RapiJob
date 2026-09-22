@@ -92,8 +92,8 @@ class SlotCita(Base):
     """Modelo de slots de citas disponibles (administrador)"""
     __tablename__ = "slots_citas"
     __table_args__ = (
-        Index('idx_fecha', 'fecha'),
-        Index('idx_estado', 'estado'),
+        Index('idx_slots_fecha', 'fecha'),
+        Index('idx_slots_estado', 'estado'),
     )
 
     id_slot = Column(Integer, primary_key=True, index=True)
@@ -112,9 +112,9 @@ class OrdenTrabajo(Base):
     """Modelo de orden de trabajo"""
     __tablename__ = "ordenes_trabajo"
     __table_args__ = (
-        Index('idx_cliente', 'id_cliente'),
-        Index('idx_tecnico', 'id_tecnico'),
-        Index('idx_estado', 'estado_orden'),
+        Index('idx_ordenes_cliente', 'id_cliente'),
+        Index('idx_ordenes_tecnico', 'id_tecnico'),
+        Index('idx_ordenes_estado', 'estado_orden'),
     )
 
     id_orden = Column(Integer, primary_key=True, index=True)
@@ -156,8 +156,8 @@ class Pago(Base):
     """Modelo de pago (registro de transacciones)"""
     __tablename__ = "pagos"
     __table_args__ = (
-        Index('idx_estado', 'estado_pago'),
-        Index('idx_fecha', 'fecha_pago'),
+        Index('idx_pagos_estado', 'estado_pago'),
+        Index('idx_pagos_fecha', 'fecha_pago'),
     )
 
     id_pago = Column(Integer, primary_key=True, index=True)
