@@ -217,3 +217,77 @@ class TokenData(BaseModel):
     user_id: int
     email: str
     tipo_usuario: str
+
+# ==================== KPIs DE TÉCNICO ====================
+class TechKPIResponse(BaseModel):
+    """Schema de respuesta de KPIs de técnico"""
+    technician_id: str
+    email: str
+    acceptance_rate: Decimal
+    avg_rating: Decimal
+    total_reviews: int
+    total_earnings: Decimal
+    completed_jobs: int
+    first_time_fix_rate: Decimal
+    completion_rate: Decimal
+    total_assignments: int
+    avg_resolution_hours: Decimal
+    applications_sent: int
+    applications_accepted: int
+
+    class Config:
+        from_attributes = True
+
+
+class TechKPIListResponse(BaseModel):
+    """Schema para lista de KPIs de técnico"""
+    total: int
+    data: list[TechKPIResponse]
+
+
+# ==================== KPIs DE CLIENTE ====================
+class ClientKPIResponse(BaseModel):
+    """Schema de respuesta de KPIs de cliente"""
+    client_id: str
+    email: str
+    jobs_published: int
+    jobs_completed: int
+    jobs_cancelled: int
+    avg_hiring_time_hours: Decimal
+    avg_rating_given: Decimal
+    total_spent: Decimal
+
+    class Config:
+        from_attributes = True
+
+
+class ClientKPIListResponse(BaseModel):
+    """Schema para lista de KPIs de cliente"""
+    total: int
+    data: list[ClientKPIResponse]
+
+
+# ==================== KPIs DE PLATAFORMA ====================
+class PlatformMetricsResponse(BaseModel):
+    """Schema de respuesta de métricas de plataforma"""
+    period_date: datetime
+    jobs_created: int
+    completion_rate: Decimal
+    cancel_rate: Decimal
+    gmv: Decimal  # Gross Merchandise Value
+    revenue: Decimal
+    take_rate: Decimal  # Porcentaje de ingresos vs GMV
+    avg_match_hours: Decimal
+    active_users: int
+
+    class Config:
+        from_attributes = True
+
+
+class PlatformSummaryResponse(BaseModel):
+    """Schema de resumen de plataforma"""
+    summary: list[PlatformMetricsResponse]
+    total_jobs_7d: int
+    avg_completion_rate_7d: Decimal
+    total_revenue_7d: Decimal
+    avg_take_rate_7d: Decimal

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, date
+from datetime import date
 from functools import wraps
 
 from flask import (
@@ -8,7 +8,7 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
-from db import query_db, execute_db, get_db, is_postgres, sql_epoch_hours
+from db import query_db, execute_db
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -182,139 +182,12 @@ def dashboard():
 
 
 # ---------------------------------------------------------------------------
-# KPIs
+# KPIs: movido a un Blueprint separado (ver kpis.py).
+# Se registra al final del archivo para evitar import circular.
+#     GET  /kpis              -> Panel de métricas según rol (HTML)
+#     GET  /api/kpis          -> API en formato JSON de los KPIs
+#     POST /api/kpi/snapshot  -> Refrescar MV y guardar snapshot semanal
 # ---------------------------------------------------------------------------
-@app.route("/kpis")
-@login_required
-def kpis():
-    role = session["role"]
-    user_id = session["user_id"]
-    period = request.args.get("period", "30d")
-    days = int(period.replace("d", "")) if "d" in period else 30
-    since = date.today() - timedelta(days=days)
-
-    if role == "technician":
-        metrics = query_db(
-            "SELECT * FROM v_tech_metrics WHERE technician_id = %s::uuid",
-            [user_id], one=True
-        )
-        history = query_db(
-            "SELECT * FROM kpi_snapshots WHERE entity_type = 'technician' "
-            "AND entity_id = %s::uuid AND period_start >= %s ORDER BY period_start",
-            [user_id, since]
-        )
-        return render_template("kpis.html", metrics=metrics, history=history, period=period, role=role)
-
-    elif role == "client":
-        stats = query_db(
-            "SELECT COUNT(*) as total_jobs, "
-            "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, "
-            "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled, "
-            "COALESCE(AVG(budget_max), 0) as avg_budget "
-            "FROM jobs WHERE client_id = %s::uuid AND created_at >= %s",
-            [user_id, since], one=True
-        )
-        rating = query_db(
-            "SELECT COALESCE(AVG(rating), 0) as avg_rating, COUNT(*) as review_count "
-            "FROM job_reviews WHERE reviewer_id = %s::uuid AND created_at >= %s",
-            [user_id, since], one=True
-        )
-        return render_template("kpis.html", stats=stats, rating=rating, period=period, role=role)
-
-    else:
-        platform = query_db("SELECT * FROM mv_platform_metrics ORDER BY wk DESC LIMIT 1", one=True)
-        history = query_db(
-            "SELECT * FROM kpi_snapshots WHERE entity_type = 'platform' "
-            "AND period_start >= %s ORDER BY period_start",
-            [since]
-        )
-        alerts = query_db(
-            "SELECT * FROM platform_alert_rules WHERE enabled = true ORDER BY metric_name"
-        )
-        return render_template("kpis.html", platform=platform, history=history, alerts=alerts, period=period, role=role)
-
-
-@app.route("/api/kpis")
-@login_required
-def api_kpis():
-    role = request.args.get("role", session["role"])
-    entity_id = request.args.get("entity_id", session["user_id"])
-    period = request.args.get("period", "30d")
-    days = int(period.replace("d", "")) if "d" in period else 30
-    since = date.today() - timedelta(days=days)
-
-    if role == "technician":
-        metrics = query_db(
-            "SELECT * FROM v_tech_metrics WHERE technician_id = %s::uuid",
-            [entity_id], one=True
-        )
-        history = query_db(
-            "SELECT * FROM kpi_snapshots WHERE entity_type = 'technician' AND entity_id = %s::uuid "
-            "AND period_start >= %s ORDER BY period_start",
-            [entity_id, since]
-        )
-    elif role == "platform":
-        metrics = query_db("SELECT * FROM mv_platform_metrics ORDER BY wk DESC LIMIT 1", one=True)
-        history = query_db(
-            "SELECT * FROM kpi_snapshots WHERE entity_type = 'platform' AND period_start >= %s ORDER BY period_start",
-            [since]
-        )
-    else:
-        return jsonify({"error": "unknown role"}), 400
-
-    return jsonify({
-        "metrics": dict(metrics) if metrics else None,
-        "history": [dict(h) for h in history]
-    })
-
-
-@app.route("/api/kpi/snapshot", methods=["POST"])
-def api_kpi_snapshot():
-    try:
-        _run_kpi_snapshot()
-        return jsonify({"status": "ok", "message": "KPI snapshot calculado"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-def _run_kpi_snapshot():
-    today = date.today()
-    week_start = today - timedelta(days=today.weekday())
-
-    existing = query_db(
-        "SELECT id FROM kpi_snapshots WHERE entity_type = 'platform' AND period_start = %s",
-        [week_start], one=True
-    )
-    if existing:
-        return
-
-    row = query_db(f"""
-        SELECT
-            COUNT(*) as jobs_created,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as jobs_completed,
-            SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as jobs_cancelled,
-            COALESCE(AVG(budget_max), 0) as gmv,
-            COALESCE(AVG({sql_epoch_hours('completed_at', 'created_at')}), 0) as match_hours
-        FROM jobs WHERE created_at >= %s
-    """, [week_start], one=True)
-
-    metrics = {
-        "jobs_created_weekly": float(row["jobs_created"]),
-        "completion_rate": float(row["jobs_completed"]) / max(float(row["jobs_created"]), 1) * 100,
-        "cancel_rate": float(row["jobs_cancelled"]) / max(float(row["jobs_created"]), 1) * 100,
-        "match_hours": float(row["match_hours"]),
-        "gmv_weekly": float(row["gmv"]),
-    }
-
-    for name, value in metrics.items():
-        execute_db(
-            "INSERT INTO kpi_snapshots (entity_type, metric_name, metric_value, period_start, period_end) "
-            "VALUES ('platform', %s, %s, %s, %s)",
-            [name, value, week_start, today]
-        )
-
-    if is_postgres():
-        execute_db("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_platform_metrics")
 
 
 # ---------------------------------------------------------------------------
@@ -929,6 +802,14 @@ def health():
         return jsonify({"status": "healthy", "database": "connected"})
     except Exception as e:
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Registro de Blueprints (al final para evitar import circular entre
+# app.py <-> kpis.py: kpis.py importa login_required/role_required de app.py)
+# ---------------------------------------------------------------------------
+from kpis import kpis_bp
+app.register_blueprint(kpis_bp)
 
 
 if __name__ == "__main__":

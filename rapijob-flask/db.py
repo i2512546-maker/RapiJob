@@ -447,6 +447,23 @@ LEFT JOIN v_tech_applied          app  ON app.technician_id = u.id
 LEFT JOIN v_tech_first_time_fix   ff   ON ff.technician_id = u.id
 WHERE u.role = 'technician';
 
+CREATE VIEW IF NOT EXISTS v_client_metrics AS
+SELECT u.id AS client_id,
+       u.email,
+       COUNT(DISTINCT j.id) AS jobs_published,
+       COUNT(DISTINCT CASE WHEN j.status = 'completed' THEN j.id END) AS jobs_completed,
+       COUNT(DISTINCT CASE WHEN j.status = 'cancelled' THEN j.id END) AS jobs_cancelled,
+       COALESCE(ROUND(AVG((julianday(ja.assigned_at) - julianday(j.created_at)) * 24), 2), 0) AS avg_hiring_time_hours,
+       COALESCE(ROUND(AVG(jr.rating), 2), 0) AS avg_rating_given,
+       COALESCE(SUM(CASE WHEN p.status = 'succeeded' AND p.payer_id = u.id THEN p.amount END), 0) AS total_spent
+FROM users u
+LEFT JOIN jobs j ON j.client_id = u.id
+LEFT JOIN job_assignments ja ON ja.job_id = j.id
+LEFT JOIN job_reviews jr ON jr.job_id = j.id AND jr.reviewer_id = j.client_id
+LEFT JOIN payments p ON p.job_id = j.id
+WHERE u.role = 'client'
+GROUP BY u.id, u.email;
+
 CREATE VIEW IF NOT EXISTS mv_platform_metrics AS
 WITH per_job AS (
     SELECT j.id,
