@@ -1,6 +1,9 @@
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from config import get_settings
 from database import Base, engine
@@ -38,10 +41,17 @@ app.include_router(ordenes.router)
 app.include_router(metodos_pago.router)
 app.include_router(slots_citas.router)
 
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend-static")
+
 
 @app.get("/")
 async def root():
-    """Endpoint raíz"""
+    """Servir el frontend o mostrar información de la API."""
+    index_file = FRONTEND_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
     return {
         "mensaje": "Bienvenido a RapiJob API",
         "version": settings.VERSION,

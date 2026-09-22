@@ -13,7 +13,7 @@ const apiBaseInput = $('#apiBaseInput');
 const servicesList = $('#servicesList');
 
 function getApiBase() {
-  return (localStorage.getItem(API_STORAGE_KEY) || apiBaseInput.value || 'http://localhost:8000').trim().replace(/\/$/, '');
+  return (localStorage.getItem(API_STORAGE_KEY) || apiBaseInput.value || window.location.origin || 'http://localhost:8000').trim().replace(/\/$/, '');
 }
 
 function showMessage(text, type = 'info') {
