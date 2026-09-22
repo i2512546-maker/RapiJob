@@ -24,10 +24,6 @@
                 </div>
                 <div>
                     <div class="font-semibold">{{ cotizacion.first_name }} {{ cotizacion.last_name }}</div>
-                    <div class="text-sm text-gray-500">
-                        <span class="text-yellow-500">★ {{ "%.1f"|format(cotizacion.rating_avg|float) }}</span>
-                        ({{ cotizacion.reviews_count }} reseñas)
-                    </div>
                     {% if cotizacion.cover_letter %}
                     <p class="text-xs text-gray-500 mt-1">{{ cotizacion.cover_letter }}</p>
                     {% endif %}

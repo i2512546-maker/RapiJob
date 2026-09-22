@@ -135,10 +135,6 @@ def dashboard():
     user_id = session["user_id"]
 
     if role == "technician":
-        metrics = query_db(
-            "SELECT * FROM v_tech_metrics WHERE technician_id = %s::uuid",
-            [user_id], one=True
-        )
         assignments = query_db(
             "SELECT ja.*, j.title, j.status as job_status "
             "FROM job_assignments ja "
@@ -147,16 +143,9 @@ def dashboard():
             "ORDER BY ja.assigned_at DESC LIMIT 10",
             [user_id]
         )
-        return render_template("dashboard.html", metrics=metrics, assignments=assignments, role=role)
+        return render_template("dashboard.html", assignments=assignments, role=role)
 
     elif role == "client":
-        stats = query_db(
-            "SELECT COUNT(*) as total, "
-            "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, "
-            "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled "
-            "FROM jobs WHERE client_id = %s::uuid",
-            [user_id], one=True
-        )
         jobs = query_db(
             "SELECT j.*, s.name as specialty_name "
             "FROM jobs j LEFT JOIN specialties s ON s.id = j.specialty_id "
@@ -164,10 +153,9 @@ def dashboard():
             [user_id]
         )
         categorias = query_db("SELECT id, name, description FROM specialties ORDER BY name")
-        return render_template("dashboard.html", stats=stats, jobs=jobs, role=role, categorias=categorias)
+        return render_template("dashboard.html", jobs=jobs, role=role, categorias=categorias)
 
     else:
-        platform = query_db("SELECT * FROM mv_platform_metrics ORDER BY wk DESC LIMIT 1", one=True)
         recent_jobs = query_db(
             "SELECT j.*, u.email as client_email "
             "FROM jobs j JOIN users u ON u.id = j.client_id "
@@ -176,18 +164,9 @@ def dashboard():
         tech_count = query_db("SELECT COUNT(*) as c FROM users WHERE role = 'technician'", one=True)
         client_count = query_db("SELECT COUNT(*) as c FROM users WHERE role = 'client'", one=True)
         return render_template(
-            "dashboard.html", platform=platform, recent_jobs=recent_jobs,
+            "dashboard.html", recent_jobs=recent_jobs,
             tech_count=tech_count, client_count=client_count, role=role
         )
-
-
-# ---------------------------------------------------------------------------
-# KPIs: movido a un Blueprint separado (ver kpis.py).
-# Se registra al final del archivo para evitar import circular.
-#     GET  /kpis              -> Panel de métricas según rol (HTML)
-#     GET  /api/kpis          -> API en formato JSON de los KPIs
-#     POST /api/kpi/snapshot  -> Refrescar MV y guardar snapshot semanal
-# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
@@ -199,13 +178,9 @@ def technicians():
     search = request.args.get("q", "")
     spec = request.args.get("specialty", "")
     query = """
-        SELECT u.id, p.first_name, p.last_name, u.email,
-               COALESCE(vm.avg_rating, 0) as rating_avg,
-               COALESCE(vm.acceptance_rate, 0) as acceptance_rate,
-               COALESCE(vm.total_earned, 0) as earnings_total
+        SELECT u.id, p.first_name, p.last_name, u.email
         FROM users u
         JOIN profiles p ON p.user_id = u.id
-        LEFT JOIN v_tech_metrics vm ON vm.technician_id = u.id
         WHERE u.role = 'technician' AND u.status = 'active'
     """
     params = []
@@ -221,7 +196,7 @@ def technicians():
             )
         """
         params.append(f"%{spec}%")
-    query += " ORDER BY rating_avg DESC"
+    query += " ORDER BY p.first_name, p.last_name"
     techs = query_db(query, params)
     specialties = query_db("SELECT name FROM specialties ORDER BY name")
     return render_template("technicians.html", technicians=techs, specialties=specialties,
@@ -240,10 +215,6 @@ def technician_detail(user_id):
         flash("Técnico no encontrado", "danger")
         return redirect(url_for("technicians"))
 
-    metrics = query_db(
-        "SELECT * FROM v_tech_metrics WHERE technician_id = %s::uuid",
-        [user_id], one=True
-    )
     specs = query_db(
         "SELECT s.name FROM specialties s "
         "JOIN technician_specialties ts ON ts.specialty_id = s.id "
@@ -263,7 +234,7 @@ def technician_detail(user_id):
         "WHERE jr.reviewee_id = %s::uuid ORDER BY jr.created_at DESC LIMIT 10",
         [user_id]
     )
-    return render_template("technician_detail.html", tech=tech, metrics=metrics,
+    return render_template("technician_detail.html", tech=tech,
                            specialties=specs, certifications=certs, reviews=reviews)
 
 
@@ -365,13 +336,10 @@ def job_detail(job_id):
         return redirect(url_for("jobs"))
 
     applications = query_db(
-        """SELECT ja.*, u.email, p.first_name, p.last_name, p.hourly_rate,
-                  COALESCE(vm.avg_rating, 0) as rating_avg,
-                  COALESCE(vm.reviews_count, 0) as reviews_count
+        """SELECT ja.*, u.email, p.first_name, p.last_name, p.hourly_rate
            FROM job_applications ja
            JOIN users u ON u.id = ja.technician_id
            LEFT JOIN profiles p ON p.user_id = u.id
-           LEFT JOIN v_tech_metrics vm ON vm.technician_id = u.id
            WHERE ja.job_id = %s::uuid ORDER BY ja.proposed_price ASC, ja.created_at DESC""",
         [job_id]
     )
@@ -473,13 +441,10 @@ def job_checkout(job_id):
     cotizacion = None
     if app_id:
         cotizacion = query_db(
-            """SELECT ja.*, u.email, p.first_name, p.last_name, p.location_label,
-                      COALESCE(vm.avg_rating, 0) as rating_avg,
-                      COALESCE(vm.reviews_count, 0) as reviews_count
+            """SELECT ja.*, u.email, p.first_name, p.last_name, p.location_label
                FROM job_applications ja
                JOIN users u ON u.id = ja.technician_id
                LEFT JOIN profiles p ON p.user_id = u.id
-               LEFT JOIN v_tech_metrics vm ON vm.technician_id = u.id
                WHERE ja.id = %s::uuid AND ja.job_id = %s::uuid AND ja.status = 'applied'""",
             [app_id, job_id], one=True
         )
@@ -802,14 +767,6 @@ def health():
         return jsonify({"status": "healthy", "database": "connected"})
     except Exception as e:
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
-
-
-# ---------------------------------------------------------------------------
-# Registro de Blueprints (al final para evitar import circular entre
-# app.py <-> kpis.py: kpis.py importa login_required/role_required de app.py)
-# ---------------------------------------------------------------------------
-from kpis import kpis_bp
-app.register_blueprint(kpis_bp)
 
 
 if __name__ == "__main__":

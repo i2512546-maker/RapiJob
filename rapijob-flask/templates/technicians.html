@@ -28,20 +28,6 @@
                 <div class="text-sm text-gray-500">{{ tech.email }}</div>
             </div>
         </div>
-        <div class="grid grid-cols-3 gap-2 text-center text-sm">
-            <div>
-                <div class="text-lg font-bold text-yellow-500">{{ "%.1f"|format(tech.rating_avg|float) }}</div>
-                <div class="text-gray-500">Rating</div>
-            </div>
-            <div>
-                <div class="text-lg font-bold text-green-600">{{ "%.0f"|format(tech.acceptance_rate|float) }}%</div>
-                <div class="text-gray-500">Acept.</div>
-            </div>
-            <div>
-                <div class="text-lg font-bold text-purple-600">S/.{{ "%.0f"|format(tech.earnings_total|float) }}</div>
-                <div class="text-gray-500">Ingresos</div>
-            </div>
-        </div>
     </a>
     {% endfor %}
 </div>

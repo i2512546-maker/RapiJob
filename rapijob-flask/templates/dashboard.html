@@ -4,37 +4,14 @@
 <h1 class="text-2xl font-bold mb-6">Dashboard</h1>
 
 {% if role == 'admin' or role == 'supervisor' %}
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Trabajos Creados (semana)</div>
-        <div class="text-3xl font-bold text-purple-600">{{ platform.jobs_created if platform else 0 }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Tasa Finalización</div>
-        <div class="text-3xl font-bold text-green-600">{{ "%.1f"|format(platform.completion_rate|float) if platform else 0 }}%</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">GMV Semanal</div>
-        <div class="text-3xl font-bold text-blue-600">S/.{{ "%.0f"|format(platform.gmv|float) if platform else 0 }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Tiempo Match</div>
-        <div class="text-3xl font-bold text-orange-600">{{ "%.1f"|format(platform.match_hours|float) if platform else 0 }}h</div>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Técnicos Activos</div>
+        <div class="text-sm text-gray-500">Técnicos activos</div>
         <div class="text-2xl font-bold">{{ tech_count.c if tech_count else 0 }}</div>
     </div>
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Clientes Activos</div>
+        <div class="text-sm text-gray-500">Clientes activos</div>
         <div class="text-2xl font-bold">{{ client_count.c if client_count else 0 }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Take Rate</div>
-        <div class="text-2xl font-bold text-purple-600">{{ "%.1f"|format(platform.take_rate|float) if platform else 0 }}%</div>
     </div>
 </div>
 
@@ -73,40 +50,6 @@
 </div>
 
 {% elif role == 'technician' %}
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Rating Promedio</div>
-        <div class="text-3xl font-bold text-yellow-500">{{ "%.1f"|format(metrics.avg_rating|float) if metrics else 0 }}</div>
-        <div class="text-xs text-gray-400">{{ metrics.reviews_count if metrics else 0 }} reseñas</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Tasa Aceptación</div>
-        <div class="text-3xl font-bold text-green-600">{{ "%.1f"|format(metrics.acceptance_rate|float) if metrics else 0 }}%</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Tasa Finalización</div>
-        <div class="text-3xl font-bold text-blue-600">{{ "%.1f"|format(metrics.completion_rate|float) if metrics else 0 }}%</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Ingresos Totales</div>
-        <div class="text-3xl font-bold text-purple-600">S/.{{ "%.0f"|format(metrics.total_earned|float) if metrics else 0 }}</div>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">First-Time Fix</div>
-        <div class="text-2xl font-bold text-green-500">{{ "%.1f"|format(metrics.first_time_fix_rate|float) if metrics else 0 }}%</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Tiempo Resolución</div>
-        <div class="text-2xl font-bold text-orange-500">{{ "%.0f"|format(metrics.avg_resolution_minutes|float) if metrics else 0 }} min</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Aplicaciones Enviadas</div>
-        <div class="text-2xl font-bold">{{ metrics.jobs_applied if metrics else 0 }}</div>
-    </div>
-</div>
 
 <h2 class="text-lg font-semibold mb-4">Asignaciones Recientes</h2>
 <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -138,20 +81,6 @@
 </div>
 
 {% elif role == 'client' %}
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Trabajos Publicados</div>
-        <div class="text-3xl font-bold text-purple-600">{{ stats.total if stats else 0 }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Completados</div>
-        <div class="text-3xl font-bold text-green-600">{{ stats.completed if stats else 0 }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Cancelados</div>
-        <div class="text-3xl font-bold text-red-500">{{ stats.cancelled if stats else 0 }}</div>
-    </div>
-</div>
 
 <div class="bg-white rounded-xl shadow p-6 mb-8">
     <div class="flex justify-between items-center mb-4">

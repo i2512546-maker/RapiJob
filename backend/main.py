@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from config import get_settings
 from database import Base, engine
-from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas, kpis
+from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas
 from app.models.models import Servicio, MetodoPago, SlotCita
 
 # Configuración
@@ -66,7 +66,6 @@ app.include_router(servicios.router)
 app.include_router(ordenes.router)
 app.include_router(metodos_pago.router)
 app.include_router(slots_citas.router)
-app.include_router(kpis.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
 if FRONTEND_DIR.exists():

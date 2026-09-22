@@ -12,7 +12,7 @@ Base de datos SQL completa para una plataforma de contratación de servicios té
 - **Catálogo de Servicios**: Categorías y servicios configurables
 - **Órdenes de Trabajo**: Sistema completo de contratos y seguimiento
 - **Pagos**: Múltiples métodos de pago y gestión de transacciones
-- **Reseñas y Calificaciones**: Sistema de retroalimentación y KPIs
+- **Reseñas y Calificaciones**: Sistema de retroalimentación
 - **Disponibilidad**: Gestión de horarios y zonas de servicio
 - **Auditoría**: Trazabilidad completa de operaciones
 

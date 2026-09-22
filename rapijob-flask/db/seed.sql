@@ -1,6 +1,6 @@
 -- ============================================================
 --  RapiJob - Seed de Datos Simulados (MVP Huancayo / El Tambo / Chilca)
---  Objetivo: poblar KPIs de PLATAFORMA + reputación de técnicos.
+--  Objetivo: poblar datos de demostración + reputación de técnicos.
 --  Todas las PK son UUID válidas. Moneda de negocio: Soles (S/.).
 --
 --  CONTRASEÑA de todos los usuarios: password123
@@ -257,29 +257,4 @@ VALUES
  ('70010000-1001-4001-9007-000000000001','a0000000-0000-0000-0000-000000000020','Nueva solicitud','Hay una persona esperando una cotización de Electricidad','job_applied','10010000-1001-4001-9001-000000000001',now(),FALSE),
  ('70010000-1002-4001-9007-000000000002','a0000000-0000-0000-0000-000000000010','Cotización recibida','Juan Pérez te envió una cotización por S/. 65.00','job_applied','10010000-1001-4001-9001-000000000001',now(),FALSE);
 
--- ------------------------------------------------------------
--- 16) KPI_SNAPSHOTS semanales iniciales (histórico)
--- ------------------------------------------------------------
-REFRESH MATERIALIZED VIEW mv_platform_metrics;
-
-INSERT INTO kpi_snapshots(entity_type,entity_id,metric_name,metric_value,period_start,period_end)
-SELECT 'platform',NULL,'jobs_created_weekly',jobs_created,wk,wk+6
-FROM   mv_platform_metrics;
-INSERT INTO kpi_snapshots(entity_type,entity_id,metric_name,metric_value,period_start,period_end)
-SELECT 'platform',NULL,'completion_rate',completion_rate,wk,wk+6
-FROM   mv_platform_metrics;
-INSERT INTO kpi_snapshots(entity_type,entity_id,metric_name,metric_value,period_start,period_end)
-SELECT 'platform',NULL,'gmv',gmv,wk,wk+6
-FROM   mv_platform_metrics;
-INSERT INTO kpi_snapshots(entity_type,entity_id,metric_name,metric_value,period_start,period_end)
-SELECT 'platform',NULL,'revenue',revenue,wk,wk+6
-FROM   mv_platform_metrics;
-
-INSERT INTO kpi_snapshots(entity_type,entity_id,metric_name,metric_value,period_start,period_end)
-SELECT 'technician',u.id,'rating',tm.avg_rating,CURRENT_DATE-'6 days',CURRENT_DATE
-FROM users u JOIN v_tech_metrics tm ON tm.technician_id=u.id WHERE u.role='technician';
-INSERT INTO kpi_snapshots(entity_type,entity_id,metric_name,metric_value,period_start,period_end)
-SELECT 'technician',u.id,'earnings',tm.total_earned,CURRENT_DATE-'6 days',CURRENT_DATE
-FROM users u JOIN v_tech_metrics tm ON tm.technician_id=u.id WHERE u.role='technician';
-
-\echo 'SEED COMPLETE: 11 users, 5 specialties, 10 jobs (4 open, 1 in_progress, 4 completed), 14 cotizaciones, 5 asignaciones, 4 reviews, 5 pagos Yape/Plin/Efectivo, KPIs listos.'
+\echo 'SEED COMPLETE: 11 users, 5 specialties, 10 jobs (4 open, 1 in_progress, 4 completed), 14 cotizaciones, 5 asignaciones, 4 reviews, 5 pagos Yape/Plin/Efectivo.'

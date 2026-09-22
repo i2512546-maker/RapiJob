@@ -353,25 +353,6 @@ CREATE TABLE IF NOT EXISTS notifications (
     reference_id TEXT,
     created_at   TEXT NOT NULL DEFAULT ({SQLITE_TS})
 );
-CREATE TABLE IF NOT EXISTS kpi_snapshots (
-    id            TEXT PRIMARY KEY DEFAULT ({SQLITE_UUID}),
-    entity_type   TEXT NOT NULL CHECK (entity_type IN ('technician','client','platform')),
-    entity_id     TEXT,
-    metric_name   TEXT NOT NULL,
-    metric_value  REAL NOT NULL,
-    period_start  TEXT NOT NULL,
-    period_end    TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS platform_alert_rules (
-    id          TEXT PRIMARY KEY DEFAULT ({SQLITE_UUID}),
-    metric_name TEXT NOT NULL,
-    operator    TEXT NOT NULL CHECK (operator IN ('>','<','>=','<=','==')),
-    threshold   REAL NOT NULL,
-    severity    TEXT NOT NULL CHECK (severity IN ('info','warning','critical')),
-    channel     TEXT NOT NULL DEFAULT 'slack',
-    enabled     INTEGER NOT NULL DEFAULT 1,
-    created_at  TEXT NOT NULL DEFAULT ({SQLITE_TS})
-);
 CREATE TABLE IF NOT EXISTS commission_rules (
     id           TEXT PRIMARY KEY DEFAULT ({SQLITE_UUID}),
     specialty_id TEXT,
@@ -381,129 +362,6 @@ CREATE TABLE IF NOT EXISTS commission_rules (
     created_at   TEXT NOT NULL DEFAULT ({SQLITE_TS})
 );
 
-CREATE VIEW IF NOT EXISTS v_tech_acceptance_rate AS
-SELECT technician_id,
-       COUNT(*) AS offered,
-       COUNT(CASE WHEN accepted_at IS NOT NULL THEN 1 END) AS accepted,
-       ROUND(100.0 * COUNT(CASE WHEN accepted_at IS NOT NULL THEN 1 END) / NULLIF(COUNT(*), 0), 2) AS acceptance_rate
-FROM job_assignments GROUP BY technician_id;
-
-CREATE VIEW IF NOT EXISTS v_tech_rating AS
-SELECT r.reviewee_id AS technician_id,
-       ROUND(AVG(r.rating), 2) AS avg_rating,
-       COUNT(*) AS reviews_count
-FROM job_reviews r JOIN jobs j ON j.id = r.job_id
-WHERE j.status = 'completed'
-GROUP BY r.reviewee_id;
-
-CREATE VIEW IF NOT EXISTS v_tech_earnings AS
-SELECT payee_id AS technician_id, COALESCE(SUM(amount), 0) AS total_earned
-FROM payments WHERE status = 'succeeded' GROUP BY payee_id;
-
-CREATE VIEW IF NOT EXISTS v_tech_first_time_fix AS
-SELECT j.assigned_to AS technician_id,
-       COUNT(CASE WHEN v.id IS NULL THEN 1 END) AS first_time_ok,
-       COUNT(*) AS total_completed,
-       ROUND(100.0 * COUNT(CASE WHEN v.id IS NULL THEN 1 END) / NULLIF(COUNT(*), 0), 2) AS first_time_fix_rate
-FROM jobs j
-JOIN job_reviews r ON r.job_id = j.id
-LEFT JOIN review_validations v ON v.job_id = j.id
-WHERE j.status = 'completed' AND j.assigned_to IS NOT NULL
-GROUP BY j.assigned_to;
-
-CREATE VIEW IF NOT EXISTS v_tech_completion_rate AS
-SELECT assigned_to AS technician_id,
-       COUNT(*) AS jobs_assigned,
-       COUNT(CASE WHEN status = 'completed' THEN 1 END) AS jobs_completed,
-       ROUND(100.0 * COUNT(CASE WHEN status = 'completed' THEN 1 END) / NULLIF(COUNT(*), 0), 2) AS completion_rate
-FROM jobs WHERE assigned_to IS NOT NULL GROUP BY assigned_to;
-
-CREATE VIEW IF NOT EXISTS v_tech_resolution_time AS
-SELECT assigned_to AS technician_id,
-       ROUND(AVG((julianday(completed_at) - julianday(created_at)) * 24 * 60), 2) AS avg_resolution_minutes
-FROM jobs WHERE status = 'completed' AND assigned_to IS NOT NULL GROUP BY assigned_to;
-
-CREATE VIEW IF NOT EXISTS v_tech_applied AS
-SELECT technician_id, COUNT(*) AS jobs_applied
-FROM job_applications GROUP BY technician_id;
-
-CREATE VIEW IF NOT EXISTS v_tech_metrics AS
-SELECT u.id AS technician_id,
-       COALESCE(r.avg_rating, 0)              AS avg_rating,
-       COALESCE(r.reviews_count, 0)           AS reviews_count,
-       COALESCE(e.total_earned, 0)            AS total_earned,
-       COALESCE(acc.acceptance_rate, 0)       AS acceptance_rate,
-       COALESCE(comp.completion_rate, 0)      AS completion_rate,
-       COALESCE(rt.avg_resolution_minutes, 0) AS avg_resolution_minutes,
-       COALESCE(app.jobs_applied, 0)          AS jobs_applied,
-       COALESCE(ff.first_time_fix_rate, 0)    AS first_time_fix_rate
-FROM users u
-LEFT JOIN v_tech_rating           r   ON r.technician_id = u.id
-LEFT JOIN v_tech_earnings         e   ON e.technician_id = u.id
-LEFT JOIN v_tech_acceptance_rate  acc ON acc.technician_id = u.id
-LEFT JOIN v_tech_completion_rate  comp ON comp.technician_id = u.id
-LEFT JOIN v_tech_resolution_time  rt   ON rt.technician_id = u.id
-LEFT JOIN v_tech_applied          app  ON app.technician_id = u.id
-LEFT JOIN v_tech_first_time_fix   ff   ON ff.technician_id = u.id
-WHERE u.role = 'technician';
-
-CREATE VIEW IF NOT EXISTS v_client_metrics AS
-SELECT u.id AS client_id,
-       u.email,
-       COUNT(DISTINCT j.id) AS jobs_published,
-       COUNT(DISTINCT CASE WHEN j.status = 'completed' THEN j.id END) AS jobs_completed,
-       COUNT(DISTINCT CASE WHEN j.status = 'cancelled' THEN j.id END) AS jobs_cancelled,
-       COALESCE(ROUND(AVG((julianday(ja.assigned_at) - julianday(j.created_at)) * 24), 2), 0) AS avg_hiring_time_hours,
-       COALESCE(ROUND(AVG(jr.rating), 2), 0) AS avg_rating_given,
-       COALESCE(SUM(CASE WHEN p.status = 'succeeded' AND p.payer_id = u.id THEN p.amount END), 0) AS total_spent
-FROM users u
-LEFT JOIN jobs j ON j.client_id = u.id
-LEFT JOIN job_assignments ja ON ja.job_id = j.id
-LEFT JOIN job_reviews jr ON jr.job_id = j.id AND jr.reviewer_id = j.client_id
-LEFT JOIN payments p ON p.job_id = j.id
-WHERE u.role = 'client'
-GROUP BY u.id, u.email;
-
-CREATE VIEW IF NOT EXISTS mv_platform_metrics AS
-WITH per_job AS (
-    SELECT j.id,
-           wkh.wk,
-           j.created_at, j.completed_at, j.budget_max, j.status, j.assigned_to,
-           (SELECT MIN(ja.assigned_at) FROM job_assignments ja WHERE ja.job_id = j.id) AS first_assigned_at
-    FROM jobs j
-    JOIN (SELECT id, date(created_at, 'weekday 0', '-6 days') AS wk FROM jobs) wkh ON wkh.id = j.id
-),
-weekly AS (
-    SELECT wk,
-           COUNT(*) AS jobs_created,
-           COUNT(CASE WHEN status = 'completed' THEN 1 END) AS jobs_completed,
-           COUNT(CASE WHEN status = 'cancelled' THEN 1 END) AS jobs_cancelled,
-           COUNT(CASE WHEN first_assigned_at IS NOT NULL THEN 1 END) AS jobs_matched,
-           AVG((julianday(first_assigned_at) - julianday(created_at)) * 24) AS match_hours,
-           SUM(COALESCE(budget_max, 0)) AS gmv,
-           AVG((julianday(completed_at) - julianday(created_at)) * 24 * 60) AS avg_completion_minutes
-    FROM per_job GROUP BY wk
-),
-rev AS (
-    SELECT date(created_at, 'weekday 0', '-6 days') AS wk, SUM(amount) AS revenue
-    FROM payments WHERE status = 'succeeded' GROUP BY date(created_at, 'weekday 0', '-6 days')
-),
-eng AS (
-    SELECT date(created_at, 'weekday 0', '-6 days') AS wk, COUNT(DISTINCT user_id) AS dau
-    FROM notifications GROUP BY date(created_at, 'weekday 0', '-6 days')
-)
-SELECT w.wk, w.jobs_created, w.jobs_completed, w.jobs_cancelled, w.jobs_matched,
-       ROUND(w.match_hours, 1) AS match_hours,
-       ROUND(w.gmv, 2) AS gmv,
-       COALESCE(rev.revenue, 0) AS revenue,
-       CASE WHEN w.jobs_created > 0 THEN ROUND(100.0 * w.jobs_completed / w.jobs_created, 2) ELSE 0 END AS completion_rate,
-       CASE WHEN w.jobs_created > 0 THEN ROUND(100.0 * w.jobs_cancelled / w.jobs_created, 2) ELSE 0 END AS cancel_rate,
-       CASE WHEN w.gmv > 0 THEN ROUND(100.0 * COALESCE(rev.revenue, 0) / w.gmv, 2) ELSE 0 END AS take_rate,
-       COALESCE(eng.dau, 0) AS dau
-FROM weekly w
-LEFT JOIN rev ON rev.wk = w.wk
-LEFT JOIN eng ON eng.wk = w.wk
-ORDER BY w.wk DESC;
 """
 
 
@@ -731,23 +589,6 @@ def _seed_sqlite(conn):
         c.execute(
             "INSERT INTO notifications (id, user_id, title, message, type, reference_id, read, created_at) VALUES (?,?,?,?,?,?,?,?)",
             (n[0], n[1], n[2], n[3], n[4], n[5], n[6], _d(0)))
-
-    # --- KPIs de plataforma (desde la vista) ---
-    try:
-        rows = c.execute("""
-            SELECT wk, jobs_created, completion_rate, gmv, revenue
-            FROM mv_platform_metrics""").fetchall()
-        for r in rows:
-            for metric, val in [("jobs_created_weekly", r["jobs_created"]),
-                                ("completion_rate", r["completion_rate"]),
-                                ("gmv", r["gmv"]),
-                                ("revenue", r["revenue"])]:
-                c.execute(
-                    "INSERT INTO kpi_snapshots (entity_type, entity_id, metric_name, metric_value, period_start, period_end) "
-                    "VALUES ('platform', NULL, ?, ?, ?, date(?, '+6 days'))",
-                    (metric, val, r["wk"], r["wk"]))
-    except sqlite3.Error:
-        pass
 
     conn.commit()
 
