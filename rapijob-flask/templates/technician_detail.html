@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ tech.first_name }} {{ tech.last_name }} - RapiJob{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <a href="/technicians" class="text-purple-600 hover:underline text-sm">&larr; Volver a técnicos</a>
+</div>
+
+<div class="bg-white rounded-xl shadow p-8 mb-6">
+    <div class="flex items-center gap-4 mb-6">
+        <div class="w-20 h-20 rounded-full gradient-bg flex items-center justify-center text-white font-bold text-2xl">
+            {{ (tech.first_name or '?')[0] }}{{ (tech.last_name or '?')[0] }}
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold">{{ tech.first_name }} {{ tech.last_name }}</h1>
+            <p class="text-gray-500">{{ tech.email }}</p>
+            {% if tech.hourly_rate %}<p class="text-sm text-gray-500">S/.{{ tech.hourly_rate }}/hora</p>{% endif %}
+        </div>
+    </div>
+
+    {% if tech.bio %}
+    <p class="text-gray-600 mb-6">{{ tech.bio }}</p>
+    {% endif %}
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="text-center p-4 bg-gray-50 rounded-lg">
+            <div class="text-2xl font-bold text-yellow-500">{{ "%.1f"|format(metrics.avg_rating|float) if metrics else '-' }}</div>
+            <div class="text-sm text-gray-500">Rating</div>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded-lg">
+            <div class="text-2xl font-bold text-green-600">{{ "%.1f"|format(metrics.acceptance_rate|float) if metrics else '-' }}%</div>
+            <div class="text-sm text-gray-500">Aceptación</div>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded-lg">
+            <div class="text-2xl font-bold text-blue-600">{{ "%.1f"|format(metrics.completion_rate|float) if metrics else '-' }}%</div>
+            <div class="text-sm text-gray-500">Finalización</div>
+        </div>
+        <div class="text-center p-4 bg-gray-50 rounded-lg">
+            <div class="text-2xl font-bold text-purple-600">S/.{{ "%.0f"|format(metrics.total_earned|float) if metrics else '0' }}</div>
+            <div class="text-sm text-gray-500">Ingresos</div>
+        </div>
+    </div>
+</div>
+
+{% if specialties %}
+<div class="bg-white rounded-xl shadow p-6 mb-6">
+    <h2 class="font-semibold mb-3">Especialidades</h2>
+    <div class="flex flex-wrap gap-2">
+        {% for s in specialties %}
+        <span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">{{ s.name }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if certifications %}
+<div class="bg-white rounded-xl shadow p-6 mb-6">
+    <h2 class="font-semibold mb-3">Certificaciones</h2>
+    <div class="space-y-3">
+        {% for c in certifications %}
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div>
+                <div class="font-medium">{{ c.name }}</div>
+                <div class="text-sm text-gray-500">Emitida: {{ c.issued_at.strftime('%d/%m/%Y') if c.issued_at else 'N/A' }}</div>
+            </div>
+            <div class="text-right text-sm">
+                {% if c.expires_at %}
+                <div class="text-gray-500">Exp: {{ c.expires_at.strftime('%d/%m/%Y') }}</div>
+                {% if c.expires_at < now %}
+                <span class="text-red-500 text-xs">Vencida</span>
+                {% endif %}
+                {% else %}
+                <div class="text-gray-500">Sin expiración</div>
+                {% endif %}
+                <span class="text-xs px-2 py-0.5 rounded
+                    {% if c.validation_status == 'valid' %}bg-green-100 text-green-800
+                    {% elif c.validation_status == 'rejected' %}bg-red-100 text-red-800
+                    {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                    {{ c.validation_status }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if reviews %}
+<div class="bg-white rounded-xl shadow p-6">
+    <h2 class="font-semibold mb-3">Reseñas</h2>
+    <div class="space-y-3">
+        {% for r in reviews %}
+        <div class="p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-yellow-500">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</span>
+                <span class="text-sm text-gray-500">{{ r.title }}</span>
+            </div>
+            {% if r.comment %}<p class="text-sm text-gray-600">{{ r.comment }}</p>{% endif %}
+            <div class="text-xs text-gray-400 mt-1">{{ r.created_at.strftime('%d/%m/%Y') }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

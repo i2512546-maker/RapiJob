@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - RapiJob{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Dashboard</h1>
+
+{% if role == 'admin' or role == 'supervisor' %}
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Trabajos Creados (semana)</div>
+        <div class="text-3xl font-bold text-purple-600">{{ platform.jobs_created if platform else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Tasa Finalización</div>
+        <div class="text-3xl font-bold text-green-600">{{ "%.1f"|format(platform.completion_rate|float) if platform else 0 }}%</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">GMV Semanal</div>
+        <div class="text-3xl font-bold text-blue-600">S/.{{ "%.0f"|format(platform.gmv|float) if platform else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Tiempo Match</div>
+        <div class="text-3xl font-bold text-orange-600">{{ "%.1f"|format(platform.match_hours|float) if platform else 0 }}h</div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Técnicos Activos</div>
+        <div class="text-2xl font-bold">{{ tech_count.c if tech_count else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Clientes Activos</div>
+        <div class="text-2xl font-bold">{{ client_count.c if client_count else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Take Rate</div>
+        <div class="text-2xl font-bold text-purple-600">{{ "%.1f"|format(platform.take_rate|float) if platform else 0 }}%</div>
+    </div>
+</div>
+
+<h2 class="text-lg font-semibold mb-4">Trabajos Recientes</h2>
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-4 py-3 text-left">Título</th>
+                <th class="px-4 py-3 text-left">Cliente</th>
+                <th class="px-4 py-3 text-left">Especialidad</th>
+                <th class="px-4 py-3 text-left">Estado</th>
+                <th class="px-4 py-3 text-left">Presupuesto</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in recent_jobs %}
+            <tr class="border-t hover:bg-50">
+                <td class="px-4 py-3"><a href="/job/{{ job.id }}" class="text-purple-600 hover:underline">{{ job.title }}</a></td>
+                <td class="px-4 py-3 text-gray-600">{{ job.client_email }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ job.specialty_name or '-' }}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded text-xs
+                        {% if job.status == 'completed' %}bg-green-100 text-green-800
+                        {% elif job.status == 'cancelled' %}bg-red-100 text-red-800
+                        {% elif job.status == 'in_progress' %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ job.status }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-600">S/.{{ job.budget_min }} - S/.{{ job.budget_max }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% elif role == 'technician' %}
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Rating Promedio</div>
+        <div class="text-3xl font-bold text-yellow-500">{{ "%.1f"|format(metrics.avg_rating|float) if metrics else 0 }}</div>
+        <div class="text-xs text-gray-400">{{ metrics.reviews_count if metrics else 0 }} reseñas</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Tasa Aceptación</div>
+        <div class="text-3xl font-bold text-green-600">{{ "%.1f"|format(metrics.acceptance_rate|float) if metrics else 0 }}%</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Tasa Finalización</div>
+        <div class="text-3xl font-bold text-blue-600">{{ "%.1f"|format(metrics.completion_rate|float) if metrics else 0 }}%</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Ingresos Totales</div>
+        <div class="text-3xl font-bold text-purple-600">S/.{{ "%.0f"|format(metrics.total_earned|float) if metrics else 0 }}</div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">First-Time Fix</div>
+        <div class="text-2xl font-bold text-green-500">{{ "%.1f"|format(metrics.first_time_fix_rate|float) if metrics else 0 }}%</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Tiempo Resolución</div>
+        <div class="text-2xl font-bold text-orange-500">{{ "%.0f"|format(metrics.avg_resolution_minutes|float) if metrics else 0 }} min</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Aplicaciones Enviadas</div>
+        <div class="text-2xl font-bold">{{ metrics.jobs_applied if metrics else 0 }}</div>
+    </div>
+</div>
+
+<h2 class="text-lg font-semibold mb-4">Asignaciones Recientes</h2>
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-4 py-3 text-left">Trabajo</th>
+                <th class="px-4 py-3 text-left">Estado</th>
+                <th class="px-4 py-3 text-left">Fecha Asignación</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in assignments %}
+            <tr class="border-t hover:bg-50">
+                <td class="px-4 py-3"><a href="/job/{{ a.job_id }}" class="text-purple-600 hover:underline">{{ a.title }}</a></td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded text-xs
+                        {% if a.job_status == 'completed' %}bg-green-100 text-green-800
+                        {% elif a.job_status == 'cancelled' %}bg-red-100 text-red-800
+                        {% else %}bg-blue-100 text-blue-800{% endif %}">
+                        {{ a.job_status }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-500">{{ a.assigned_at.strftime('%d/%m/%Y') if a.assigned_at else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% elif role == 'client' %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Trabajos Publicados</div>
+        <div class="text-3xl font-bold text-purple-600">{{ stats.total if stats else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Completados</div>
+        <div class="text-3xl font-bold text-green-600">{{ stats.completed if stats else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Cancelados</div>
+        <div class="text-3xl font-bold text-red-500">{{ stats.cancelled if stats else 0 }}</div>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">¿Qué necesitas arreglar?</h2>
+        <a href="/jobs/new" class="px-4 py-2 gradient-bg text-white rounded-lg text-sm font-medium hover:opacity-90">
+            Solicitar técnico
+        </a>
+    </div>
+    <div class="flex flex-wrap gap-3">
+        {% for c in categorias %}
+        <a href="/jobs/new?specialty_id={{ c.id }}"
+           class="px-4 py-2 border border-purple-200 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-50 transition">
+            {{ c.name }}
+        </a>
+        {% else %}
+        <span class="text-sm text-gray-500">No hay categorías disponibles.</span>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-semibold">Mis Trabajos</h2>
+</div>
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-4 py-3 text-left">Título</th>
+                <th class="px-4 py-3 text-left">Especialidad</th>
+                <th class="px-4 py-3 text-left">Estado</th>
+                <th class="px-4 py-3 text-left">Presupuesto</th>
+                <th class="px-4 py-3 text-left">Creado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr class="border-t hover:bg-50">
+                <td class="px-4 py-3"><a href="/job/{{ job.id }}" class="text-purple-600 hover:underline">{{ job.title }}</a></td>
+                <td class="px-4 py-3 text-gray-500">{{ job.specialty_name or '-' }}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded text-xs
+                        {% if job.status == 'completed' %}bg-green-100 text-green-800
+                        {% elif job.status == 'cancelled' %}bg-red-100 text-red-800
+                        {% elif job.status == 'in_progress' %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ job.status }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                    {% if job.budget_min and job.budget_min > 0 %}S/. {{ job.budget_min }} - S/. {{ job.budget_max }}{% else %}Por cotizar{% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-500">{{ job.created_at.strftime('%d/%m/%Y') if job.created_at else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
