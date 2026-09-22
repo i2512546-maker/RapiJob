@@ -9,7 +9,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: DATABASE_URL
-        generateValue: true
+        fromDatabase:
+          name: rapijob-db
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: ALGORITHM
@@ -22,3 +24,8 @@ services:
         value: RapiJob Beta
       - key: PORT
         value: "10000"
+
+databases:
+  - name: rapijob-db
+    databaseName: rapijob
+    user: rapijob

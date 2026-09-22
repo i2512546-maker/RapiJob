@@ -2,237 +2,150 @@ const API_STORAGE_KEY = 'rapijob_api_base';
 const TOKEN_STORAGE_KEY = 'rapijob_token';
 const USER_STORAGE_KEY = 'rapijob_user';
 
-const authMessage = document.getElementById('authMessage');
-const orderMessage = document.getElementById('orderMessage');
-const servicesList = document.getElementById('servicesList');
-const apiBaseInput = document.getElementById('apiBaseInput');
-const serviceSelect = document.getElementById('serviceSelect');
-
 const state = {
   token: localStorage.getItem(TOKEN_STORAGE_KEY) || '',
   user: JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || 'null'),
   services: [],
 };
 
+const $ = (selector) => document.querySelector(selector);
+const apiBaseInput = $('#apiBaseInput');
+const servicesList = $('#servicesList');
+
 function getApiBase() {
-  const stored = localStorage.getItem(API_STORAGE_KEY);
-  if (stored) return stored;
-  const current = apiBaseInput.value.trim();
-  if (current) {
-    localStorage.setItem(API_STORAGE_KEY, current);
-  }
-  return current || 'http://localhost:8000';
+  return (localStorage.getItem(API_STORAGE_KEY) || apiBaseInput.value || 'http://localhost:8000').trim().replace(/\/$/, '');
 }
 
-function setApiBase() {
-  const value = apiBaseInput.value.trim() || 'http://localhost:8000';
-  localStorage.setItem(API_STORAGE_KEY, value);
-  showMessage(authMessage, `API configurada: ${value}`, 'info');
-}
-
-function showMessage(element, text, type = 'info') {
+function showMessage(text, type = 'info') {
+  const element = $('#authMessage');
   element.textContent = text;
   element.className = `message ${type}`;
 }
 
-function updateAuthUI() {
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (state.token) {
-    logoutBtn.classList.remove('hidden');
-  } else {
-    logoutBtn.classList.add('hidden');
-  }
+function showToast(text) {
+  const toast = $('#toast');
+  toast.textContent = text;
+  toast.classList.add('visible');
+  window.setTimeout(() => toast.classList.remove('visible'), 3200);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
 }
 
 async function apiFetch(path, options = {}) {
-  const base = getApiBase();
   const headers = new Headers(options.headers || {});
-
-  if (!(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  if (state.token) {
-    headers.set('Authorization', `Bearer ${state.token}`);
-  }
-
-  const response = await fetch(`${base}${path}`, {
-    ...options,
-    headers,
-  });
-
+  if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+  if (state.token) headers.set('Authorization', `Bearer ${state.token}`);
+  const response = await fetch(`${getApiBase()}${path}`, { ...options, headers });
   const text = await response.text();
   let payload = text;
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch (error) {
-    payload = text;
-  }
-
-  if (!response.ok) {
-    const detail = payload?.detail || payload?.message || 'Error de la API';
-    throw new Error(detail);
-  }
-
+  try { payload = text ? JSON.parse(text) : null; } catch { /* La API puede responder texto plano. */ }
+  if (!response.ok) throw new Error(payload?.detail || payload?.message || 'No se pudo completar la solicitud.');
   return payload;
 }
 
-async function loadProfile() {
-  if (!state.token) return;
-
-  try {
-    const data = await apiFetch('/api/auth/me');
-    state.user = data;
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data));
-  } catch (error) {
-    console.error(error);
-    logout();
-  }
+function updateAuthUI() {
+  const loggedIn = Boolean(state.token);
+  $('#logoutBtn').classList.toggle('hidden', !loggedIn);
+  $('#userGreeting').classList.toggle('hidden', !loggedIn);
+  $('#userGreeting').textContent = loggedIn ? `Hola, ${state.user?.nombre || 'bienvenido'}` : '';
+  $('.nav-cta').textContent = loggedIn ? 'Solicitar servicio ↗' : 'Comenzar ↗';
 }
 
 function renderServices(services) {
   servicesList.innerHTML = '';
-
   if (!services.length) {
-    servicesList.innerHTML = '<p>No hay servicios disponibles.</p>';
+    servicesList.innerHTML = '<div class="empty-state">No hay servicios disponibles por ahora.</div>';
     return;
   }
-
-  services.forEach((service) => {
+  const icons = ['⌂', '✦', '⚙', '◒', '✚', '◇'];
+  services.forEach((service, index) => {
     const card = document.createElement('article');
     card.className = 'service-card';
-    card.innerHTML = `
-      <h4>${service.nombre_servicio}</h4>
-      <p>${service.descripcion || 'Sin descripción disponible.'}</p>
-      <div class="service-meta">
-        <span>€ ${Number(service.precio_base).toFixed(2)}</span>
-        <span>${service.duracion_estimada_minutos || 60} min</span>
-      </div>
-    `;
+    card.innerHTML = `<div class="service-icon">${icons[index % icons.length]}</div>
+      <h3>${escapeHtml(service.nombre_servicio || 'Servicio')}</h3>
+      <p>${escapeHtml(service.descripcion || 'Soluciones profesionales adaptadas a tus necesidades.')}</p>
+      <div class="service-meta"><strong>Desde $${Number(service.precio_base || 0).toFixed(2)}</strong><span>${service.duracion_estimada_minutos || 60} min aprox.</span></div>`;
     servicesList.appendChild(card);
   });
-
-  serviceSelect.innerHTML = '<option value="">Selecciona un servicio</option>' +
-    services
-      .map((service) => `<option value="${service.id_servicio}">${service.nombre_servicio} - € ${Number(service.precio_base).toFixed(2)}</option>`)
-      .join('');
 }
 
 async function loadServices() {
+  servicesList.innerHTML = '<div class="loading-state"><span class="spinner"></span>Cargando servicios...</div>';
   try {
-    const services = await apiFetch('/api/servicios/');
-    state.services = services;
-    renderServices(services);
+    state.services = await apiFetch('/api/servicios/');
+    renderServices(state.services);
   } catch (error) {
-    console.error(error);
-    showMessage(authMessage, 'Necesitas iniciar sesión para ver los servicios.', 'error');
-    servicesList.innerHTML = '<p>Inicia sesión para cargar los servicios.</p>';
+    servicesList.innerHTML = '<div class="empty-state">Inicia sesión para consultar los servicios.</div>';
+    if (state.token) showToast(error.message);
+  }
+}
+
+async function loadProfile() {
+  if (!state.token) return;
+  try {
+    state.user = await apiFetch('/api/auth/me');
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(state.user));
+    updateAuthUI();
+  } catch {
+    logout(false);
   }
 }
 
 async function handleLogin(event) {
   event.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
-
+  const button = event.submitter;
+  button.disabled = true;
   try {
-    const data = await apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, contraseña: password }),
-    });
-
+    const data = await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ email: $('#loginEmail').value.trim(), contraseña: $('#loginPassword').value }) });
     state.token = data.access_token;
     localStorage.setItem(TOKEN_STORAGE_KEY, state.token);
-    updateAuthUI();
-    showMessage(authMessage, 'Sesión iniciada correctamente.', 'success');
     await loadProfile();
+    updateAuthUI();
+    showMessage('Sesión iniciada correctamente. ¡Qué bueno verte!', 'success');
+    showToast('Bienvenido a RapiJob');
     await loadServices();
-  } catch (error) {
-    showMessage(authMessage, error.message, 'error');
-  }
+  } catch (error) { showMessage(error.message, 'error'); } finally { button.disabled = false; }
 }
 
 async function handleRegister(event) {
   event.preventDefault();
-
-  const payload = {
-    nombre: document.getElementById('regNombre').value.trim(),
-    apellido: document.getElementById('regApellido').value.trim(),
-    email: document.getElementById('regEmail').value.trim(),
-    telefono: document.getElementById('regTelefono').value.trim(),
-    tipo_usuario: document.getElementById('regTipoUsuario').value,
-    documento_identidad: document.getElementById('regDocumento').value.trim(),
-    contraseña: document.getElementById('regPassword').value.trim(),
-  };
-
+  const button = event.submitter;
+  button.disabled = true;
+  const payload = { nombre: $('#regNombre').value.trim(), apellido: $('#regApellido').value.trim(), email: $('#regEmail').value.trim(), telefono: $('#regTelefono').value.trim(), tipo_usuario: $('#regTipoUsuario').value, documento_identidad: $('#regDocumento').value, contraseña: $('#regPassword').value };
   try {
-    await apiFetch('/api/auth/registro', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    showMessage(authMessage, 'Usuario registrado correctamente. Ahora puedes iniciar sesión.', 'success');
-    document.getElementById('registerForm').reset();
-  } catch (error) {
-    showMessage(authMessage, error.message, 'error');
-  }
+    await apiFetch('/api/auth/registro', { method: 'POST', body: JSON.stringify(payload) });
+    $('#registerForm').reset();
+    $('#loginEmail').value = payload.email;
+    document.querySelector('[data-tab="login"]').click();
+    showMessage('Cuenta creada. Ahora puedes iniciar sesión.', 'success');
+  } catch (error) { showMessage(error.message, 'error'); } finally { button.disabled = false; }
 }
 
-async function handleCreateOrder(event) {
-  event.preventDefault();
-
-  if (!state.token) {
-    showMessage(orderMessage, 'Debes iniciar sesión para crear una orden.', 'error');
-    return;
-  }
-
-  const payload = {
-    id_servicio: Number(document.getElementById('serviceSelect').value),
-    id_slot_cita: Number(document.getElementById('slotId').value),
-    id_metodo_pago: Number(document.getElementById('metodoPagoId').value),
-    ubicacion_servicio: document.getElementById('ubicacion').value.trim(),
-    descripcion_problema: document.getElementById('descripcion').value.trim(),
-    notas_adicionales: document.getElementById('notas').value.trim(),
-    precio_negociado: document.getElementById('precioNegociado').value ? Number(document.getElementById('precioNegociado').value) : null,
-  };
-
-  try {
-    const data = await apiFetch('/api/ordenes/', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    showMessage(orderMessage, `Orden creada correctamente. ID: ${data.id_orden}`, 'success');
-    document.getElementById('orderForm').reset();
-  } catch (error) {
-    showMessage(orderMessage, error.message, 'error');
-  }
-}
-
-function logout() {
-  state.token = '';
-  state.user = null;
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
-  localStorage.removeItem(USER_STORAGE_KEY);
+function logout(show = true) {
+  state.token = ''; state.user = null;
+  localStorage.removeItem(TOKEN_STORAGE_KEY); localStorage.removeItem(USER_STORAGE_KEY);
   updateAuthUI();
-  showMessage(authMessage, 'Has cerrado sesión.', 'info');
-  servicesList.innerHTML = '<p>Inicia sesión para ver los servicios.</p>';
+  if (show) { showMessage('Has cerrado sesión correctamente.', 'info'); showToast('Sesión cerrada'); }
+}
+
+function initTabs() {
+  document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item === tab));
+    $('#loginForm').classList.toggle('hidden', tab.dataset.tab !== 'login');
+    $('#registerForm').classList.toggle('hidden', tab.dataset.tab !== 'register');
+  }));
 }
 
 function init() {
   apiBaseInput.value = getApiBase();
-  updateAuthUI();
-
-  if (state.token) {
-    loadProfile();
-  }
-
-  loadServices();
-
-  document.getElementById('loginForm').addEventListener('submit', handleLogin);
-  document.getElementById('registerForm').addEventListener('submit', handleRegister);
-  document.getElementById('orderForm').addEventListener('submit', handleCreateOrder);
-  document.getElementById('saveApiBtn').addEventListener('click', setApiBase);
-  document.getElementById('logoutBtn').addEventListener('click', logout);
-  document.getElementById('refreshServicesBtn').addEventListener('click', loadServices);
+  updateAuthUI(); initTabs(); loadServices(); loadProfile();
+  $('#loginForm').addEventListener('submit', handleLogin);
+  $('#registerForm').addEventListener('submit', handleRegister);
+  $('#logoutBtn').addEventListener('click', () => logout());
+  $('#refreshServicesBtn').addEventListener('click', loadServices);
+  $('#saveApiBtn').addEventListener('click', () => { localStorage.setItem(API_STORAGE_KEY, apiBaseInput.value.trim().replace(/\/$/, '')); showToast('URL de API guardada'); loadServices(); });
 }
 
 init();
