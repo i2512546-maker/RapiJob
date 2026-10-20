@@ -1,58 +1,38 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: mysql:8
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-rapijob}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-rapijob}
+      MYSQL_USER: ${DB_USER:-rapijob}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-rapijob}
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - mysqldata:/var/lib/mysql
+      - ./db/schema_mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./db/seed_mysql.sql:/docker-entrypoint-initdb.d/02-seed.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-rapijob}"]
       interval: 5s
       timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  init-passwords:
-    build: .
-    command: python init_passwords.py
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-rapijob}
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: "no"
+      retries: 10
 
   web:
     build: .
     ports:
       - "5000:5000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-rapijob}
-      REDIS_URL: redis://redis:6379
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-rapijob}
+      DB_PASSWORD: ${DB_PASSWORD:-rapijob}
+      DB_NAME: ${DB_NAME:-rapijob}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      init-passwords:
-        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:
-  pgdata:
+  mysqldata:

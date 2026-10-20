@@ -3,97 +3,171 @@
 {% block content %}
 <h1 class="text-2xl font-bold mb-6">Dashboard</h1>
 
-{% if role == 'admin' or role == 'supervisor' %}
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+{% if role == 'admin' %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Técnicos activos</div>
-        <div class="text-2xl font-bold">{{ tech_count.c if tech_count else 0 }}</div>
+        <div class="text-sm text-gray-500">Proveedores</div>
+        <div class="text-3xl font-bold text-purple-600">{{ stats.proveedores if stats else 0 }}</div>
     </div>
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm text-gray-500">Clientes activos</div>
-        <div class="text-2xl font-bold">{{ client_count.c if client_count else 0 }}</div>
+        <div class="text-sm text-gray-500">Clientes</div>
+        <div class="text-3xl font-bold text-blue-600">{{ stats.clientes if stats else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Servicios</div>
+        <div class="text-3xl font-bold text-green-600">{{ stats.servicios if stats else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Solicitudes</div>
+        <div class="text-3xl font-bold text-orange-600">{{ stats.solicitudes if stats else 0 }}</div>
     </div>
 </div>
 
-<h2 class="text-lg font-semibold mb-4">Trabajos Recientes</h2>
+<h2 class="text-lg font-semibold mb-4">Solicitudes Recientes</h2>
 <div class="bg-white rounded-xl shadow overflow-hidden">
     <table class="w-full text-sm">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-4 py-3 text-left">Título</th>
+                <th class="px-4 py-3 text-left">Servicio</th>
                 <th class="px-4 py-3 text-left">Cliente</th>
-                <th class="px-4 py-3 text-left">Especialidad</th>
                 <th class="px-4 py-3 text-left">Estado</th>
-                <th class="px-4 py-3 text-left">Presupuesto</th>
+                <th class="px-4 py-3 text-left">Fecha</th>
             </tr>
         </thead>
         <tbody>
-            {% for job in recent_jobs %}
-            <tr class="border-t hover:bg-50">
-                <td class="px-4 py-3"><a href="/job/{{ job.id }}" class="text-purple-600 hover:underline">{{ job.title }}</a></td>
-                <td class="px-4 py-3 text-gray-600">{{ job.client_email }}</td>
-                <td class="px-4 py-3 text-gray-500">{{ job.specialty_name or '-' }}</td>
+            {% for s in recientes %}
+            <tr class="border-t">
+                <td class="px-4 py-3"><a href="/servicio/{{ s.servicio_id }}" class="text-purple-600 hover:underline">{{ s.servicio_titulo }}</a></td>
+                <td class="px-4 py-3 text-gray-600">{{ s.cliente_nombre }}</td>
                 <td class="px-4 py-3">
                     <span class="px-2 py-1 rounded text-xs
-                        {% if job.status == 'completed' %}bg-green-100 text-green-800
-                        {% elif job.status == 'cancelled' %}bg-red-100 text-red-800
-                        {% elif job.status == 'in_progress' %}bg-blue-100 text-blue-800
+                        {% if s.estado == 'terminada' %}bg-green-100 text-green-800
+                        {% elif s.estado == 'cancelada' %}bg-red-100 text-red-800
+                        {% elif s.estado == 'aceptada' %}bg-blue-100 text-blue-800
                         {% else %}bg-gray-100 text-gray-800{% endif %}">
-                        {{ job.status }}
+                        {{ s.estado }}
                     </span>
                 </td>
-                <td class="px-4 py-3 text-gray-600">S/.{{ job.budget_min }} - S/.{{ job.budget_max }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ s.fecha.strftime('%d/%m/%Y') if s.fecha else '-' }}</td>
             </tr>
+            {% else %}
+            <tr><td colspan="4" class="px-4 py-6 text-center text-gray-500">Sin solicitudes</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-{% elif role == 'technician' %}
-
-<h2 class="text-lg font-semibold mb-4">Asignaciones Recientes</h2>
-<div class="bg-white rounded-xl shadow overflow-hidden">
-    <table class="w-full text-sm">
-        <thead class="bg-gray-50">
-            <tr>
-                <th class="px-4 py-3 text-left">Trabajo</th>
-                <th class="px-4 py-3 text-left">Estado</th>
-                <th class="px-4 py-3 text-left">Fecha Asignación</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for a in assignments %}
-            <tr class="border-t hover:bg-50">
-                <td class="px-4 py-3"><a href="/job/{{ a.job_id }}" class="text-purple-600 hover:underline">{{ a.title }}</a></td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 rounded text-xs
-                        {% if a.job_status == 'completed' %}bg-green-100 text-green-800
-                        {% elif a.job_status == 'cancelled' %}bg-red-100 text-red-800
-                        {% else %}bg-blue-100 text-blue-800{% endif %}">
-                        {{ a.job_status }}
-                    </span>
-                </td>
-                <td class="px-4 py-3 text-gray-500">{{ a.assigned_at.strftime('%d/%m/%Y') if a.assigned_at else '-' }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+{% elif role == 'proveedor' %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Solicitudes Recibidas</div>
+        <div class="text-3xl font-bold text-purple-600">{{ stats.total if stats else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Terminadas</div>
+        <div class="text-3xl font-bold text-green-600">{{ stats.terminadas if stats else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Pendientes</div>
+        <div class="text-3xl font-bold text-orange-500">{{ stats.pendientes if stats else 0 }}</div>
+    </div>
 </div>
-
-{% elif role == 'client' %}
 
 <div class="bg-white rounded-xl shadow p-6 mb-8">
     <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-semibold">¿Qué necesitas arreglar?</h2>
+        <h2 class="text-lg font-semibold">Mis Servicios</h2>
         <a href="/jobs/new" class="px-4 py-2 gradient-bg text-white rounded-lg text-sm font-medium hover:opacity-90">
-            Solicitar técnico
+            Publicar servicio
+        </a>
+    </div>
+    <div class="space-y-3">
+        {% for se in servicios %}
+        <a href="/servicio/{{ se.id }}" class="block border rounded-lg p-4 hover:bg-purple-50 transition">
+            <div class="flex justify-between">
+                <span class="font-medium">{{ se.titulo }}</span>
+                <span class="text-purple-700 font-semibold">S/ {{ "%.2f"|format(se.precio|float) }}</span>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">{{ se.categoria }} · {{ se.ubicacion or '-' }}</div>
+        </a>
+        {% else %}
+        <p class="text-sm text-gray-500">Aún no publicaste servicios. ¡Crea el primero!</p>
+        {% endfor %}
+    </div>
+</div>
+
+<h2 class="text-lg font-semibold mb-4">Solicitudes Recibidas</h2>
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-4 py-3 text-left">Servicio</th>
+                <th class="px-4 py-3 text-left">Cliente</th>
+                <th class="px-4 py-3 text-left">Estado</th>
+                <th class="px-4 py-3 text-left">Fecha</th>
+                <th class="px-4 py-3 text-left">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in solicitudes %}
+            <tr class="border-t">
+                <td class="px-4 py-3">{{ s.servicio_titulo }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ s.cliente_nombre }}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded text-xs
+                        {% if s.estado == 'terminada' %}bg-green-100 text-green-800
+                        {% elif s.estado == 'cancelada' %}bg-red-100 text-red-800
+                        {% elif s.estado == 'aceptada' %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">{{ s.estado }}</span>
+                </td>
+                <td class="px-4 py-3 text-gray-500">{{ s.fecha.strftime('%d/%m/%Y') if s.fecha else '-' }}</td>
+                <td class="px-4 py-3 space-x-2">
+                    {% if s.estado == 'pendiente' %}
+                    <form method="POST" action="/solicitud/{{ s.id }}/estado" class="inline">
+                        <input type="hidden" name="estado" value="aceptada">
+                        <button class="px-2 py-1 bg-blue-600 text-white rounded text-xs">Aceptar</button>
+                    </form>
+                    <form method="POST" action="/solicitud/{{ s.id }}/estado" class="inline">
+                        <input type="hidden" name="estado" value="cancelada">
+                        <button class="px-2 py-1 bg-red-500 text-white rounded text-xs">Rechazar</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">Sin solicitudes</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% elif role == 'cliente' %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Solicitudes</div>
+        <div class="text-3xl font-bold text-purple-600">{{ stats.total if stats else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Terminadas</div>
+        <div class="text-3xl font-bold text-green-600">{{ stats.terminadas if stats else 0 }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm text-gray-500">Canceladas</div>
+        <div class="text-3xl font-bold text-red-500">{{ stats.canceladas if stats else 0 }}</div>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">¿Qué necesitas?</h2>
+        <a href="/servicios" class="px-4 py-2 gradient-bg text-white rounded-lg text-sm font-medium hover:opacity-90">
+            Buscar servicios
         </a>
     </div>
     <div class="flex flex-wrap gap-3">
         {% for c in categorias %}
-        <a href="/jobs/new?specialty_id={{ c.id }}"
+        <a href="/servicios?categoria={{ c.nombre }}"
            class="px-4 py-2 border border-purple-200 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-50 transition">
-            {{ c.name }}
+            {{ c.nombre }}
         </a>
         {% else %}
         <span class="text-sm text-gray-500">No hay categorías disponibles.</span>
@@ -101,39 +175,58 @@
     </div>
 </div>
 
-<div class="flex justify-between items-center mb-4">
-    <h2 class="text-lg font-semibold">Mis Trabajos</h2>
-</div>
+<h2 class="text-lg font-semibold mb-4">Mis Solicitudes</h2>
 <div class="bg-white rounded-xl shadow overflow-hidden">
     <table class="w-full text-sm">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-4 py-3 text-left">Título</th>
-                <th class="px-4 py-3 text-left">Especialidad</th>
+                <th class="px-4 py-3 text-left">Servicio</th>
+                <th class="px-4 py-3 text-left">Proveedor</th>
+                <th class="px-4 py-3 text-left">Precio</th>
                 <th class="px-4 py-3 text-left">Estado</th>
-                <th class="px-4 py-3 text-left">Presupuesto</th>
-                <th class="px-4 py-3 text-left">Creado</th>
+                <th class="px-4 py-3 text-left">Acciones</th>
             </tr>
         </thead>
         <tbody>
-            {% for job in jobs %}
-            <tr class="border-t hover:bg-50">
-                <td class="px-4 py-3"><a href="/job/{{ job.id }}" class="text-purple-600 hover:underline">{{ job.title }}</a></td>
-                <td class="px-4 py-3 text-gray-500">{{ job.specialty_name or '-' }}</td>
+            {% for s in solicitudes %}
+            <tr class="border-t">
+                <td class="px-4 py-3"><a href="/servicio/{{ s.servicio_id }}" class="text-purple-600 hover:underline">{{ s.servicio_titulo }}</a></td>
+                <td class="px-4 py-3 text-gray-600">{{ s.proveedor_nombre }}</td>
+                <td class="px-4 py-3 text-gray-600">S/ {{ "%.2f"|format(s.precio|float) }}</td>
                 <td class="px-4 py-3">
                     <span class="px-2 py-1 rounded text-xs
-                        {% if job.status == 'completed' %}bg-green-100 text-green-800
-                        {% elif job.status == 'cancelled' %}bg-red-100 text-red-800
-                        {% elif job.status == 'in_progress' %}bg-blue-100 text-blue-800
-                        {% else %}bg-gray-100 text-gray-800{% endif %}">
-                        {{ job.status }}
-                    </span>
+                        {% if s.estado == 'terminada' %}bg-green-100 text-green-800
+                        {% elif s.estado == 'cancelada' %}bg-red-100 text-red-800
+                        {% elif s.estado == 'aceptada' %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">{{ s.estado }}</span>
                 </td>
-                <td class="px-4 py-3 text-gray-600">
-                    {% if job.budget_min and job.budget_min > 0 %}S/. {{ job.budget_min }} - S/. {{ job.budget_max }}{% else %}Por cotizar{% endif %}
+                <td class="px-4 py-3 space-x-2">
+                    {% if s.estado == 'aceptada' %}
+                    <form method="POST" action="/solicitud/{{ s.id }}/estado" class="inline">
+                        <input type="hidden" name="estado" value="terminada">
+                        <button class="px-2 py-1 bg-green-600 text-white rounded text-xs">Marcar terminada</button>
+                    </form>
+                    {% elif s.estado == 'pendiente' %}
+                    <form method="POST" action="/solicitud/{{ s.id }}/estado" class="inline">
+                        <input type="hidden" name="estado" value="cancelada">
+                        <button class="px-2 py-1 bg-red-500 text-white rounded text-xs">Cancelar</button>
+                    </form>
+                    {% elif s.estado == 'terminada' %}
+                    <form method="POST" action="/solicitud/{{ s.id }}/calificar" class="inline-flex items-center gap-1">
+                        <select name="puntaje" class="px-2 py-1 border rounded text-xs">
+                            <option value="5">5★</option>
+                            <option value="4">4★</option>
+                            <option value="3">3★</option>
+                            <option value="2">2★</option>
+                            <option value="1">1★</option>
+                        </select>
+                        <button class="px-2 py-1 bg-yellow-500 text-white rounded text-xs">Calificar</button>
+                    </form>
+                    {% endif %}
                 </td>
-                <td class="px-4 py-3 text-gray-500">{{ job.created_at.strftime('%d/%m/%Y') if job.created_at else '-' }}</td>
             </tr>
+            {% else %}
+            <tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">Aún no tienes solicitudes</td></tr>
             {% endfor %}
         </tbody>
     </table>
