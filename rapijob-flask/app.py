@@ -72,9 +72,7 @@ def load_user():
 # ---------------------------------------------------------------------------
 @app.route("/")
 def index():
-    if "user_id" in session:
-        return redirect(url_for("dashboard"))
-    return redirect(url_for("login"))
+    return redirect(url_for("jobs"))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -306,7 +304,6 @@ def api_kpis():
 # ---------------------------------------------------------------------------
 @app.route("/proveedores")
 @app.route("/technicians")
-@login_required
 def technicians():
     search = request.args.get("q", "")
     cat = request.args.get("categoria", request.args.get("specialty", ""))
@@ -342,7 +339,6 @@ def technicians():
 
 @app.route("/technician/<user_id>")
 @app.route("/proveedor/<user_id>")
-@login_required
 def technician_detail(user_id):
     tech = query_db(
         "SELECT * FROM usuarios WHERE id = %s AND rol = 'proveedor'",
@@ -383,7 +379,6 @@ def technician_detail(user_id):
 # ---------------------------------------------------------------------------
 @app.route("/jobs")
 @app.route("/servicios")
-@login_required
 def jobs():
     categoria = request.args.get("categoria", "")
     ubicacion = request.args.get("ubicacion", "").strip()

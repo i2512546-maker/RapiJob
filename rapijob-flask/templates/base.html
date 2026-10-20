@@ -11,17 +11,18 @@
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    {% if g.user %}
     <nav class="bg-white shadow-sm border-b">
         <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="/dashboard" class="text-xl font-bold gradient-bg bg-clip-text text-transparent">
+            <a href="/" class="text-xl font-bold gradient-bg bg-clip-text text-transparent">
                 RapiJob
             </a>
             <div class="flex items-center gap-4 text-sm">
+                <a href="/servicios" class="hover:text-purple-600">Servicios</a>
+                <a href="/proveedores" class="hover:text-purple-600">Proveedores</a>
+                <a href="/categorias" class="hover:text-purple-600">Categorías</a>
+                {% if g.user %}
                 <a href="/dashboard" class="hover:text-purple-600">Dashboard</a>
                 <a href="/kpis" class="hover:text-purple-600">KPIs</a>
-                <a href="/servicios" class="hover:text-purple-600">Servicios</a>
-                <a href="/categorias" class="hover:text-purple-600">Categorías</a>
                 {% if session.role == 'admin' %}
                 <a href="/technicians" class="hover:text-purple-600">Proveedores</a>
                 <a href="/clients" class="hover:text-purple-600">Clientes</a>
@@ -31,14 +32,17 @@
                 {% elif session.role == 'cliente' %}
                 <a href="/technicians" class="hover:text-purple-600">Proveedores</a>
                 {% endif %}
-                <span class="text-gray-400">|</span>
-                <span class="text-gray-600">{{ g.user.nombre or g.user.email }}</span>
-                <span class="px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-700">{{ session.role }}</span>
+                {% else %}
+                <a href="/login" class="text-purple-600 hover:underline">Iniciar sesión</a>
+                <a href="/register" class="text-purple-600 hover:underline">Registrarse</a>
+                {% endif %}
+                <span class="px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-700">{{ g.user.role if g.user else 'invitado' }}</span>
+                {% if g.user %}
                 <a href="/logout" class="text-red-500 hover:text-red-700">Salir</a>
+                {% endif %}
             </div>
         </div>
     </nav>
-    {% endif %}
 
     <main class="max-w-7xl mx-auto px-4 py-6">
         {% with messages = get_flashed_messages(with_categories=true) %}
