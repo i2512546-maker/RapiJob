@@ -1,27 +1,35 @@
 import os
-from datetime import date
+from datetime import datetime, timedelta, date
 from functools import wraps
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
     session, flash, jsonify, g
 )
-from werkzeug.security import generate_password_hash, check_password_hash
+import bcrypt
 from config import Config
-from db import query_db, execute_db
+from db import query_db, execute_db, get_db, is_mysql
 
 app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 app.jinja_env.globals["now"] = date.today()
 
-# Distritos de la zona de cobertura (MVP: Huancayo, El Tambo, Chilca)
-DISTRITOS = {
-    "Huancayo": {"lat": -12.0691, "lng": -75.2116},
-    "El Tambo": {"lat": -12.0482, "lng": -75.2048},
-    "Chilca": {"lat": -12.0832, "lng": -75.1910},
-}
-METODOS_PAGO = {"yape": "Yape", "plin": "Plin", "cash": "Efectivo al finalizar"}
+
+# ---------------------------------------------------------------------------
+# Contraseñas (bcrypt)
+# ---------------------------------------------------------------------------
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, clave_hash: str) -> bool:
+    if not clave_hash:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), clave_hash.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -54,9 +62,7 @@ def load_user():
     g.user = None
     if "user_id" in session:
         g.user = query_db(
-            "SELECT u.*, p.first_name, p.last_name, p.avatar_url "
-            "FROM users u LEFT JOIN profiles p ON p.user_id = u.id "
-            "WHERE u.id = %s::uuid",
+            "SELECT * FROM usuarios WHERE id = %s",
             [session["user_id"]], one=True
         )
 
@@ -74,16 +80,16 @@ def index():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         user = query_db(
-            "SELECT * FROM users WHERE email = %s AND status = 'active'",
+            "SELECT * FROM usuarios WHERE email = %s",
             [email], one=True
         )
-        if user and check_password_hash(user["password"], password):
-            session["user_id"] = str(user["id"])
-            session["role"] = user["role"]
-            flash(f"Bienvenido, {user['email']}", "success")
+        if user and verify_password(password, user["clave_hash"]):
+            session["user_id"] = user["id"]
+            session["role"] = user["rol"]
+            flash(f"Bienvenido, {user['nombre']}", "success")
             return redirect(url_for("dashboard"))
         flash("Credenciales inválidas", "danger")
     return render_template("login.html")
@@ -92,30 +98,42 @@ def login():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        email = request.form.get("email", "").strip()
+        nombre = request.form.get("nombre", "").strip()
+        email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        role = request.form.get("role", "client")
-        first_name = request.form.get("first_name", "").strip()
-        last_name = request.form.get("last_name", "").strip()
+        telefono = request.form.get("telefono", "").strip()
+        rol = request.form.get("rol", "cliente").strip()
+        ciudad = request.form.get("ciudad", "").strip()
 
-        existing = query_db("SELECT id FROM users WHERE email = %s", [email], one=True)
+        errors = []
+        if not nombre:
+            errors.append("Escribe tu nombre.")
+        if not email or "@" not in email:
+            errors.append("Escribe un email válido.")
+        if len(password) < 6:
+            errors.append("La contraseña debe tener al menos 6 caracteres.")
+        if rol not in ("cliente", "proveedor"):
+            rol = "cliente"
+
+        existing = query_db("SELECT id FROM usuarios WHERE email = %s", [email], one=True)
         if existing:
-            flash("El email ya está registrado", "danger")
-            return render_template("register.html")
+            errors.append("El email ya está registrado.")
 
-        pw_hash = generate_password_hash(password)
-        result = query_db(
-            "INSERT INTO users (email, password, role) VALUES (%s, %s, %s) RETURNING id",
-            [email, pw_hash, role], one=True
+        if errors:
+            for e in errors:
+                flash(e, "danger")
+            return render_template("register.html", form=request.form)
+
+        user_id = query_db(
+            "INSERT INTO usuarios (nombre, email, clave_hash, telefono, rol, ciudad) "
+            "VALUES (%s, %s, %s, %s, %s, %s)",
+            [nombre, email, hash_password(password), telefono or None, rol, ciudad or None]
         )
-        user_id = str(result["id"])
-        execute_db(
-            "INSERT INTO profiles (user_id, first_name, last_name) VALUES (%s::uuid, %s, %s)",
-            [user_id, first_name, last_name]
-        )
-        flash("Registro exitoso. Inicia sesión.", "success")
-        return redirect(url_for("login"))
-    return render_template("register.html")
+        session["user_id"] = user_id
+        session["role"] = rol
+        flash("Registro exitoso.", "success")
+        return redirect(url_for("dashboard"))
+    return render_template("register.html", form={})
 
 
 @app.route("/logout")
@@ -134,627 +152,515 @@ def dashboard():
     role = session["role"]
     user_id = session["user_id"]
 
-    if role == "technician":
-        assignments = query_db(
-            "SELECT ja.*, j.title, j.status as job_status "
-            "FROM job_assignments ja "
-            "JOIN jobs j ON j.id = ja.job_id "
-            "WHERE ja.technician_id = %s::uuid "
-            "ORDER BY ja.assigned_at DESC LIMIT 10",
+    if role == "proveedor":
+        stats = query_db(
+            "SELECT COUNT(*) as total, "
+            "SUM(CASE WHEN s.estado = 'terminada' THEN 1 ELSE 0 END) as terminadas, "
+            "SUM(CASE WHEN s.estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes "
+            "FROM solicitudes s JOIN servicios se ON se.id = s.servicio_id "
+            "WHERE se.proveedor_id = %s",
+            [user_id], one=True
+        )
+        servicios = query_db(
+            "SELECT se.*, c.nombre as categoria FROM servicios se "
+            "JOIN categorias c ON c.id = se.categoria_id "
+            "WHERE se.proveedor_id = %s ORDER BY se.id DESC",
             [user_id]
         )
-        return render_template("dashboard.html", assignments=assignments, role=role)
+        solicitudes = query_db(
+            "SELECT s.*, se.titulo as servicio_titulo, u.nombre as cliente_nombre "
+            "FROM solicitudes s "
+            "JOIN servicios se ON se.id = s.servicio_id "
+            "JOIN usuarios u ON u.id = s.cliente_id "
+            "WHERE se.proveedor_id = %s ORDER BY s.fecha DESC LIMIT 10",
+            [user_id]
+        )
+        return render_template("dashboard.html", stats=stats, servicios=servicios,
+                               solicitudes=solicitudes, role=role)
 
-    elif role == "client":
-        jobs = query_db(
-            "SELECT j.*, s.name as specialty_name "
-            "FROM jobs j LEFT JOIN specialties s ON s.id = j.specialty_id "
-            "WHERE j.client_id = %s::uuid ORDER BY j.created_at DESC LIMIT 10",
+    elif role == "cliente":
+        stats = query_db(
+            "SELECT COUNT(*) as total, "
+            "SUM(CASE WHEN estado = 'terminada' THEN 1 ELSE 0 END) as terminadas, "
+            "SUM(CASE WHEN estado = 'cancelada' THEN 1 ELSE 0 END) as canceladas "
+            "FROM solicitudes WHERE cliente_id = %s",
+            [user_id], one=True
+        )
+        solicitudes = query_db(
+            "SELECT s.*, se.titulo as servicio_titulo, se.precio, se.ubicacion, "
+            "u.nombre as proveedor_nombre "
+            "FROM solicitudes s "
+            "JOIN servicios se ON se.id = s.servicio_id "
+            "JOIN usuarios u ON u.id = se.proveedor_id "
+            "WHERE s.cliente_id = %s ORDER BY s.fecha DESC LIMIT 10",
             [user_id]
         )
-        categorias = query_db("SELECT id, name, description FROM specialties ORDER BY name")
-        return render_template("dashboard.html", jobs=jobs, role=role, categorias=categorias)
+        categorias = query_db("SELECT id, nombre FROM categorias ORDER BY nombre")
+        return render_template("dashboard.html", stats=stats, solicitudes=solicitudes,
+                               role=role, categorias=categorias)
 
     else:
-        recent_jobs = query_db(
-            "SELECT j.*, u.email as client_email "
-            "FROM jobs j JOIN users u ON u.id = j.client_id "
-            "ORDER BY j.created_at DESC LIMIT 10"
+        stats = query_db(
+            "SELECT "
+            "(SELECT COUNT(*) FROM usuarios WHERE rol = 'proveedor') as proveedores, "
+            "(SELECT COUNT(*) FROM usuarios WHERE rol = 'cliente') as clientes, "
+            "(SELECT COUNT(*) FROM servicios) as servicios, "
+            "(SELECT COUNT(*) FROM solicitudes) as solicitudes", one=True
         )
-        tech_count = query_db("SELECT COUNT(*) as c FROM users WHERE role = 'technician'", one=True)
-        client_count = query_db("SELECT COUNT(*) as c FROM users WHERE role = 'client'", one=True)
-        return render_template(
-            "dashboard.html", recent_jobs=recent_jobs,
-            tech_count=tech_count, client_count=client_count, role=role
+        recientes = query_db(
+            "SELECT s.*, se.titulo as servicio_titulo, u.nombre as cliente_nombre "
+            "FROM solicitudes s JOIN servicios se ON se.id = s.servicio_id "
+            "JOIN usuarios u ON u.id = s.cliente_id ORDER BY s.fecha DESC LIMIT 10"
         )
+        return render_template("dashboard.html", stats=stats, recientes=recientes, role=role)
 
 
 # ---------------------------------------------------------------------------
-# Technicians
+# KPIs
 # ---------------------------------------------------------------------------
+@app.route("/kpis")
+@login_required
+def kpis():
+    role = session["role"]
+    user_id = session["user_id"]
+    period = request.args.get("period", "30d")
+    days = int(period.replace("d", "")) if "d" in period else 30
+    since = date.today() - timedelta(days=days)
+
+    if role == "proveedor":
+        metrics = query_db(
+            "SELECT COUNT(*) as total_solicitudes, "
+            "SUM(CASE WHEN s.estado = 'terminada' THEN 1 ELSE 0 END) as terminadas, "
+            "SUM(CASE WHEN s.estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes, "
+            "COALESCE(AVG(c.puntaje), 0) as avg_rating, "
+            "COUNT(c.id) as total_calificaciones "
+            "FROM servicios se "
+            "LEFT JOIN solicitudes s ON s.servicio_id = se.id AND s.fecha >= %s "
+            "LEFT JOIN calificaciones c ON c.solicitud_id = s.id "
+            "WHERE se.proveedor_id = %s",
+            [since, user_id], one=True
+        )
+        return render_template("kpis.html", metrics=metrics, period=period, role=role)
+
+    elif role == "cliente":
+        stats = query_db(
+            "SELECT COUNT(*) as total_solicitudes, "
+            "SUM(CASE WHEN estado = 'terminada' THEN 1 ELSE 0 END) as terminadas, "
+            "SUM(CASE WHEN estado = 'cancelada' THEN 1 ELSE 0 END) as canceladas "
+            "FROM solicitudes WHERE cliente_id = %s AND fecha >= %s",
+            [user_id, since], one=True
+        )
+        return render_template("kpis.html", stats=stats, period=period, role=role)
+
+    else:
+        stats = query_db(
+            "SELECT "
+            "(SELECT COUNT(*) FROM usuarios WHERE rol = 'proveedor') as proveedores, "
+            "(SELECT COUNT(*) FROM usuarios WHERE rol = 'cliente') as clientes, "
+            "(SELECT COUNT(*) FROM servicios) as servicios, "
+            "(SELECT COUNT(*) FROM solicitudes) as solicitudes, "
+            "(SELECT COUNT(*) FROM solicitudes WHERE estado = 'terminada') as terminadas, "
+            "(SELECT COUNT(*) FROM solicitudes WHERE estado = 'cancelada') as canceladas, "
+            "(SELECT COALESCE(AVG(puntaje), 0) FROM calificaciones) as avg_rating", one=True
+        )
+        return render_template("kpis.html", stats=stats, period=period, role=role)
+
+
+@app.route("/api/kpis")
+@login_required
+def api_kpis():
+    role = request.args.get("role", session["role"])
+    entity_id = request.args.get("entity_id", session["user_id"])
+    period = request.args.get("period", "30d")
+    days = int(period.replace("d", "")) if "d" in period else 30
+    since = date.today() - timedelta(days=days)
+
+    if role == "proveedor":
+        metrics = query_db(
+            "SELECT COUNT(*) as total_solicitudes, "
+            "SUM(CASE WHEN s.estado = 'terminada' THEN 1 ELSE 0 END) as terminadas, "
+            "COALESCE(AVG(c.puntaje), 0) as avg_rating "
+            "FROM servicios se "
+            "LEFT JOIN solicitudes s ON s.servicio_id = se.id AND s.fecha >= %s "
+            "LEFT JOIN calificaciones c ON c.solicitud_id = s.id "
+            "WHERE se.proveedor_id = %s",
+            [since, entity_id], one=True
+        )
+    elif role in ("platform", "admin"):
+        metrics = query_db(
+            "SELECT "
+            "(SELECT COUNT(*) FROM usuarios) as usuarios, "
+            "(SELECT COUNT(*) FROM servicios) as servicios, "
+            "(SELECT COUNT(*) FROM solicitudes) as solicitudes, "
+            "(SELECT COUNT(*) FROM solicitudes WHERE estado = 'terminada') as terminadas, "
+            "(SELECT COALESCE(AVG(puntaje), 0) FROM calificaciones) as avg_rating", one=True
+        )
+    else:
+        return jsonify({"error": "unknown role"}), 400
+
+    return jsonify({"metrics": dict(metrics) if metrics else None})
+
+
+# ---------------------------------------------------------------------------
+# Proveedores (ex-técnicos)
+# ---------------------------------------------------------------------------
+@app.route("/proveedores")
 @app.route("/technicians")
 @login_required
 def technicians():
     search = request.args.get("q", "")
-    spec = request.args.get("specialty", "")
+    cat = request.args.get("categoria", request.args.get("specialty", ""))
     query = """
-        SELECT u.id, p.first_name, p.last_name, u.email
-        FROM users u
-        JOIN profiles p ON p.user_id = u.id
-        WHERE u.role = 'technician' AND u.status = 'active'
+        SELECT u.id, u.nombre, u.email, u.ciudad,
+               COUNT(DISTINCT se.id) as servicios_count,
+               COALESCE(AVG(c.puntaje), 0) as rating_avg
+        FROM usuarios u
+        LEFT JOIN servicios se ON se.proveedor_id = u.id
+        LEFT JOIN solicitudes s ON s.servicio_id = se.id
+        LEFT JOIN calificaciones c ON c.solicitud_id = s.id
+        WHERE u.rol = 'proveedor'
     """
     params = []
     if search:
-        query += " AND (p.first_name ILIKE %s OR p.last_name ILIKE %s OR u.email ILIKE %s)"
+        query += " AND (u.nombre LIKE %s OR u.email LIKE %s OR u.ciudad LIKE %s)"
         params += [f"%{search}%", f"%{search}%", f"%{search}%"]
-    if spec:
+    if cat:
         query += """
             AND u.id IN (
-                SELECT ts.technician_id FROM technician_specialties ts
-                JOIN specialties s ON s.id = ts.specialty_id
-                WHERE s.name ILIKE %s
+                SELECT se2.proveedor_id FROM servicios se2
+                JOIN categorias ca ON ca.id = se2.categoria_id
+                WHERE ca.nombre LIKE %s
             )
         """
-        params.append(f"%{spec}%")
-    query += " ORDER BY p.first_name, p.last_name"
+        params.append(f"%{cat}%")
+    query += " GROUP BY u.id, u.nombre, u.email, u.ciudad ORDER BY rating_avg DESC, servicios_count DESC"
     techs = query_db(query, params)
-    specialties = query_db("SELECT name FROM specialties ORDER BY name")
-    return render_template("technicians.html", technicians=techs, specialties=specialties,
-                           search=search, selected_spec=spec)
+    categorias = query_db("SELECT nombre FROM categorias ORDER BY nombre")
+    return render_template("technicians.html", technicians=techs, specialties=categorias,
+                           search=search, selected_spec=cat)
 
 
 @app.route("/technician/<user_id>")
+@app.route("/proveedor/<user_id>")
 @login_required
 def technician_detail(user_id):
     tech = query_db(
-        "SELECT u.*, p.first_name, p.last_name, p.avatar_url, p.bio, p.hourly_rate "
-        "FROM users u JOIN profiles p ON p.user_id = u.id WHERE u.id = %s::uuid",
+        "SELECT * FROM usuarios WHERE id = %s AND rol = 'proveedor'",
         [user_id], one=True
     )
     if not tech:
-        flash("Técnico no encontrado", "danger")
+        flash("Proveedor no encontrado", "danger")
         return redirect(url_for("technicians"))
 
-    specs = query_db(
-        "SELECT s.name FROM specialties s "
-        "JOIN technician_specialties ts ON ts.specialty_id = s.id "
-        "WHERE ts.technician_id = %s::uuid",
+    servicios = query_db(
+        "SELECT se.*, c.nombre as categoria FROM servicios se "
+        "JOIN categorias c ON c.id = se.categoria_id "
+        "WHERE se.proveedor_id = %s ORDER BY se.id DESC",
         [user_id]
     )
-    certs = query_db(
-        "SELECT c.name, tc.issued_at, tc.expires_at, tc.validation_status "
-        "FROM certifications c "
-        "JOIN technician_certifications tc ON tc.certification_id = c.id "
-        "WHERE tc.technician_id = %s::uuid",
-        [user_id]
+    rating = query_db(
+        "SELECT COALESCE(AVG(c.puntaje), 0) as avg_rating, COUNT(*) as total "
+        "FROM calificaciones c "
+        "JOIN solicitudes s ON s.id = c.solicitud_id "
+        "JOIN servicios se ON se.id = s.servicio_id "
+        "WHERE se.proveedor_id = %s",
+        [user_id], one=True
     )
     reviews = query_db(
-        "SELECT jr.rating, jr.comment, jr.created_at, j.title "
-        "FROM job_reviews jr JOIN jobs j ON j.id = jr.job_id "
-        "WHERE jr.reviewee_id = %s::uuid ORDER BY jr.created_at DESC LIMIT 10",
+        "SELECT c.puntaje, c.comentario, s.fecha, se.titulo "
+        "FROM calificaciones c "
+        "JOIN solicitudes s ON s.id = c.solicitud_id "
+        "JOIN servicios se ON se.id = s.servicio_id "
+        "WHERE se.proveedor_id = %s ORDER BY c.id DESC LIMIT 10",
         [user_id]
     )
-    return render_template("technician_detail.html", tech=tech,
-                           specialties=specs, certifications=certs, reviews=reviews)
+    return render_template("technician_detail.html", tech=tech, servicios=servicios,
+                           rating=rating, reviews=reviews)
 
 
 # ---------------------------------------------------------------------------
-# Jobs
+# Servicios (buscador) + Solicitudes
 # ---------------------------------------------------------------------------
 @app.route("/jobs")
+@app.route("/servicios")
 @login_required
 def jobs():
-    status = request.args.get("status", "")
+    categoria = request.args.get("categoria", "")
+    ubicacion = request.args.get("ubicacion", "").strip()
+    try:
+        precio_max = float(request.args.get("precio_max", ""))
+    except (TypeError, ValueError):
+        precio_max = None
+
     query = """
-        SELECT j.*, u.email as client_email, s.name as specialty_name,
-               p.first_name || ' ' || p.last_name as client_name
-        FROM jobs j
-        JOIN users u ON u.id = j.client_id
-        LEFT JOIN profiles p ON p.user_id = u.id
-        LEFT JOIN specialties s ON s.id = j.specialty_id
+        SELECT se.*, c.nombre as categoria, u.nombre as proveedor_nombre, u.ciudad,
+               COALESCE(AVG(cal.puntaje), 0) as rating_avg
+        FROM servicios se
+        JOIN categorias c ON c.id = se.categoria_id
+        JOIN usuarios u ON u.id = se.proveedor_id
+        LEFT JOIN solicitudes so ON so.servicio_id = se.id
+        LEFT JOIN calificaciones cal ON cal.solicitud_id = so.id
         WHERE 1=1
     """
     params = []
-    if status:
-        query += " AND j.status = %s"
-        params.append(status)
-    if session["role"] == "client":
-        query += " AND j.client_id = %s::uuid"
-        params.append(session["user_id"])
-    if session["role"] == "technician":
-        query += " ORDER BY CASE WHEN j.status = 'open' THEN 0 ELSE 1 END, j.created_at DESC LIMIT 50"
-    else:
-        query += " ORDER BY j.created_at DESC LIMIT 50"
-    job_list = query_db(query, params)
-    return render_template("jobs.html", jobs=job_list, selected_status=status)
+    if categoria:
+        query += " AND c.nombre = %s"
+        params.append(categoria)
+    if ubicacion:
+        query += " AND se.ubicacion LIKE %s"
+        params.append(f"%{ubicacion}%")
+    if precio_max is not None:
+        query += " AND se.precio <= %s"
+        params.append(precio_max)
+    query += " GROUP BY se.id, c.nombre, u.nombre, u.ciudad ORDER BY se.id DESC LIMIT 50"
+    servicio_list = query_db(query, params)
+    categorias = query_db("SELECT nombre FROM categorias ORDER BY nombre")
+    return render_template("jobs.html", servicios=servicio_list, categorias=categorias,
+                           selected_categoria=categoria, ubicacion=ubicacion,
+                           precio_max=request.args.get("precio_max", ""))
 
 
 @app.route("/jobs/new", methods=["GET", "POST"])
 @login_required
-@role_required("client", "admin")
+@role_required("proveedor", "admin")
 def job_new():
-    specialties = query_db("SELECT id, name, description FROM specialties ORDER BY name")
-    selected_specialty = request.args.get("specialty_id", "")
+    categorias = query_db("SELECT id, nombre FROM categorias ORDER BY nombre")
+    selected_categoria = request.args.get("categoria_id", "")
     if request.method == "POST":
-        title = request.form.get("title", "").strip()
-        description = request.form.get("description", "").strip()
-        specialty_id = request.form.get("specialty_id", "").strip()
-        district = request.form.get("district", "").strip()
-        address = request.form.get("address", "").strip()
-        urgency = request.form.get("urgency", "normal")
+        titulo = request.form.get("titulo", "").strip()
+        descripcion = request.form.get("descripcion", "").strip()
+        categoria_id = request.form.get("categoria_id", "").strip()
+        ubicacion = request.form.get("ubicacion", "").strip()
+        try:
+            precio = float(request.form.get("precio", "0"))
+        except (TypeError, ValueError):
+            precio = -1
 
         errors = []
-        if not title or len(title) < 5:
-            errors.append("Por favor escribe un título breve del problema (mín. 5 caracteres).")
-        if not description:
-            errors.append("Describe el problema para que el técnico pueda cotizarlo.")
-        if not specialty_id:
-            errors.append("Selecciona la categoría de servicio.")
-        if district not in DISTRITOS:
-            errors.append("Selecciona tu distrito: Huancayo, El Tambo o Chilca.")
-        if urgency not in ("low", "normal", "high", "urgent"):
-            urgency = "normal"
+        if not titulo or len(titulo) < 5:
+            errors.append("Escribe un título de al menos 5 caracteres.")
+        if not descripcion:
+            errors.append("Describe el servicio que ofreces.")
+        if not categoria_id:
+            errors.append("Selecciona una categoría.")
+        if not ubicacion:
+            errors.append("Indica tu ubicación (distrito o ciudad).")
+        if precio < 0:
+            errors.append("Ingresa un precio válido en Soles.")
 
         if errors:
             for e in errors:
                 flash(e, "danger")
-            return render_template(
-                "job_form.html", specialties=specialties,
-                selected_specialty=specialty_id, form=request.form
-            )
+            return render_template("job_form.html", categorias=categorias,
+                                   selected_categoria=categoria_id, form=request.form)
 
-        coord = DISTRITOS[district]
-        label = f"{address if address else 'Sin dirección específica'}, {district}"
         execute_db(
-            """INSERT INTO jobs (client_id, title, description, specialty_id,
-               budget_min, budget_max, location_lat, location_lng, location_label,
-               is_remote, urgency, status)
-               VALUES (%s::uuid, %s, %s, %s::uuid, %s, %s, %s, %s, %s, %s, %s, 'open')""",
-            [session["user_id"], title, description, specialty_id,
-             0, 0, coord["lat"], coord["lng"], label, 0, urgency]
+            "INSERT INTO servicios (proveedor_id, categoria_id, titulo, descripcion, precio, ubicacion) "
+            "VALUES (%s, %s, %s, %s, %s, %s)",
+            [session["user_id"], categoria_id, titulo, descripcion, precio, ubicacion]
         )
-        flash("¡Tu solicitud fue publicada! Los técnicos enviarán sus cotizaciones.", "success")
+        flash("¡Servicio publicado! Ya puedes recibir solicitudes.", "success")
         return redirect(url_for("jobs"))
-    return render_template(
-        "job_form.html", specialties=specialties,
-        selected_specialty=selected_specialty, form={}
-    )
+    return render_template("job_form.html", categorias=categorias,
+                           selected_categoria=selected_categoria, form={})
 
 
 @app.route("/job/<job_id>")
+@app.route("/servicio/<job_id>")
 @login_required
 def job_detail(job_id):
-    job = query_db(
-        "SELECT j.*, u.email as client_email, s.name as specialty_name "
-        "FROM jobs j JOIN users u ON u.id = j.client_id "
-        "LEFT JOIN specialties s ON s.id = j.specialty_id "
-        "WHERE j.id = %s::uuid",
+    servicio = query_db(
+        "SELECT se.*, c.nombre as categoria, u.nombre as proveedor_nombre, "
+        "u.ciudad as proveedor_ciudad, u.email as proveedor_email "
+        "FROM servicios se JOIN categorias c ON c.id = se.categoria_id "
+        "JOIN usuarios u ON u.id = se.proveedor_id WHERE se.id = %s",
         [job_id], one=True
     )
-    if not job:
-        flash("Trabajo no encontrado", "danger")
+    if not servicio:
+        flash("Servicio no encontrado", "danger")
         return redirect(url_for("jobs"))
 
-    applications = query_db(
-        """SELECT ja.*, u.email, p.first_name, p.last_name, p.hourly_rate
-           FROM job_applications ja
-           JOIN users u ON u.id = ja.technician_id
-           LEFT JOIN profiles p ON p.user_id = u.id
-           WHERE ja.job_id = %s::uuid ORDER BY ja.proposed_price ASC, ja.created_at DESC""",
-        [job_id]
-    )
-
-    assignment_tech = None
-    if job.get("assigned_to"):
-        assignment_tech = query_db(
-            "SELECT u.email, p.first_name, p.last_name "
-            "FROM users u LEFT JOIN profiles p ON p.user_id = u.id "
-            "WHERE u.id = %s::uuid",
-            [str(job["assigned_to"])], one=True
-        )
-
-    review = query_db(
-        "SELECT * FROM job_reviews WHERE job_id = %s::uuid", [job_id], one=True
-    )
-
-    payment = query_db(
-        "SELECT * FROM payments WHERE job_id = %s::uuid ORDER BY created_at DESC LIMIT 1",
+    rating = query_db(
+        "SELECT COALESCE(AVG(c.puntaje), 0) as avg_rating, COUNT(*) as total "
+        "FROM calificaciones c JOIN solicitudes s ON s.id = c.solicitud_id "
+        "WHERE s.servicio_id = %s",
         [job_id], one=True
     )
-
-    is_owner = session["role"] == "client" and str(job["client_id"]) == str(session["user_id"])
-    return render_template("job_detail.html", job=job, applications=applications,
-                           assignment=assignment_tech, review=review, payment=payment,
-                           is_owner=is_owner, metodos_pago=METODOS_PAGO)
-
-
-@app.route("/job/<job_id>/apply", methods=["POST"])
-@login_required
-@role_required("technician")
-def job_apply(job_id):
-    job = query_db(
-        "SELECT * FROM jobs WHERE id = %s::uuid AND status = 'open'",
-        [job_id], one=True
-    )
-    if not job:
-        flash("Este trabajo ya no acepta cotizaciones.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    existing = query_db(
-        "SELECT id FROM job_applications WHERE job_id = %s::uuid AND technician_id = %s::uuid",
-        [job_id, session["user_id"]], one=True
-    )
-    if existing:
-        flash("Ya enviaste tu cotización para este trabajo.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    try:
-        price = float(request.form.get("proposed_price", ""))
-    except (TypeError, ValueError):
-        price = 0
-    cover_letter = request.form.get("cover_letter", "").strip()
-
-    if price <= 0:
-        flash("Ingresa un precio en Soles (S/.) mayor a 0 para tu cotización.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-    if not cover_letter:
-        flash("Escribe un breve mensaje al cliente con tu propuesta.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    execute_db(
-        "INSERT INTO job_applications (job_id, technician_id, cover_letter, proposed_price) "
-        "VALUES (%s::uuid, %s::uuid, %s, %s)",
-        [job_id, session["user_id"], cover_letter, price]
-    )
-    execute_db(
-        "INSERT INTO notifications (user_id, title, message, type, reference_id) "
-        "VALUES (%s::uuid, %s, %s, %s, %s::uuid)",
-        [str(job["client_id"]), "Cotización recibida",
-         f"Un técnico te envió una cotización para: {job['title']}",
-         "job_applied", job_id]
-    )
-    flash("¡Cotización enviada!", "success")
-    return redirect(url_for("job_detail", job_id=job_id))
-
-
-@app.route("/job/<job_id>/checkout", methods=["GET"])
-@login_required
-@role_required("client")
-def job_checkout(job_id):
-    job = query_db(
-        "SELECT j.*, s.name as specialty_name "
-        "FROM jobs j LEFT JOIN specialties s ON s.id = j.specialty_id "
-        "WHERE j.id = %s::uuid",
-        [job_id], one=True
-    )
-    if not job:
-        flash("Trabajo no encontrado", "danger")
-        return redirect(url_for("jobs"))
-    if str(job["client_id"]) != str(session["user_id"]):
-        flash("No tienes permiso para ver este trabajo.", "danger")
-        return redirect(url_for("jobs"))
-    if job["status"] != "open":
-        flash("Este trabajo ya no está disponible.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    app_id = request.args.get("app", "")
-    cotizacion = None
-    if app_id:
-        cotizacion = query_db(
-            """SELECT ja.*, u.email, p.first_name, p.last_name, p.location_label
-               FROM job_applications ja
-               JOIN users u ON u.id = ja.technician_id
-               LEFT JOIN profiles p ON p.user_id = u.id
-               WHERE ja.id = %s::uuid AND ja.job_id = %s::uuid AND ja.status = 'applied'""",
-            [app_id, job_id], one=True
-        )
-    if not cotizacion:
-        flash("Selecciona una cotización válida para continuar.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    return render_template("checkout.html", job=job, cotizacion=cotizacion,
-                           metodos_pago=METODOS_PAGO)
-
-
-@app.route("/job/<job_id>/pay", methods=["POST"])
-@login_required
-@role_required("client")
-def job_pay(job_id):
-    job = query_db("SELECT * FROM jobs WHERE id = %s::uuid", [job_id], one=True)
-    if not job:
-        flash("Trabajo no encontrado", "danger")
-        return redirect(url_for("jobs"))
-    if str(job["client_id"]) != str(session["user_id"]):
-        flash("No tienes permiso para confirmar este trabajo.", "danger")
-        return redirect(url_for("jobs"))
-    if job["status"] != "open":
-        flash("Este trabajo ya no está disponible.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    app_id = request.form.get("app_id", "")
-    method = request.form.get("method", "")
-    phone = request.form.get("phone", "").strip()
-
-    if method not in METODOS_PAGO:
-        flash("Método de pago inválido.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-    if method in ("yape", "plin") and (len(phone) < 9 or not phone.isdigit()):
-        flash("Ingresa un número de celular válido para Yape/Plin.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    cotizacion = query_db(
-        """SELECT ja.*, u.email FROM job_applications ja
-           JOIN users u ON u.id = ja.technician_id
-           WHERE ja.id = %s::uuid AND ja.job_id = %s::uuid AND ja.status = 'applied'""",
-        [app_id, job_id], one=True
-    )
-    if not cotizacion or not cotizacion.get("proposed_price"):
-        flash("Cotización no válida o sin precio.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    tech_id = str(cotizacion["technician_id"])
-    amount = float(cotizacion["proposed_price"])
-    status_pago = "succeeded" if method != "cash" else "pending"
-    medio = "Yape (simulado)" if method == "yape" else "Plin (simulado)" if method == "plin" else "Efectivo al finalizar"
-
-    execute_db(
-        "UPDATE job_applications SET status = 'rejected' WHERE job_id = %s::uuid AND status = 'applied' AND technician_id != %s::uuid",
-        [job_id, tech_id]
-    )
-    execute_db(
-        "UPDATE job_applications SET status = 'accepted' WHERE job_id = %s::uuid AND technician_id = %s::uuid",
-        [job_id, tech_id]
-    )
-    execute_db(
-        "INSERT INTO job_assignments (job_id, technician_id, assigned_by, accepted_at) "
-        "VALUES (%s::uuid, %s::uuid, %s::uuid, NOW())",
-        [job_id, tech_id, session["user_id"]]
-    )
-    execute_db(
-        "UPDATE jobs SET assigned_to = %s::uuid, status = 'in_progress' WHERE id = %s::uuid",
-        [tech_id, job_id]
-    )
-    execute_db(
-        "INSERT INTO payments (job_id, payer_id, payee_id, amount, currency, method, status, provider_txn_id) "
-        "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'PEN', %s, %s, %s)",
-        [job_id, session["user_id"], tech_id, amount, method, status_pago, method.upper() + "-MOCK-001"]
-    )
-    execute_db(
-        "INSERT INTO notifications (user_id, title, message, type, reference_id) "
-        "VALUES (%s::uuid, %s, %s, %s, %s::uuid)",
-        [tech_id, "¡Servicio confirmado!", f"Te contrataron para: {job['title']} ({medio}).",
-         "job_assigned", job_id]
-    )
-
-    flash(f"¡Pago confirmado con {medio}! El técnico ya fue notificado.", "success")
-    return redirect(url_for("job_detail", job_id=job_id))
-
-
-@app.route("/job/<job_id>/assign/<tech_id>", methods=["POST"])
-@login_required
-@role_required("client", "admin")
-def job_assign(job_id, tech_id):
-    job = query_db("SELECT * FROM jobs WHERE id = %s::uuid", [job_id], one=True)
-    if not job:
-        flash("Trabajo no encontrado", "danger")
-        return redirect(url_for("jobs"))
-    if session["role"] == "client" and str(job["client_id"]) != str(session["user_id"]):
-        flash("No tienes permiso para asignar este trabajo.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-    execute_db(
-        "UPDATE job_applications SET status = 'rejected' WHERE job_id = %s::uuid AND status = 'applied' "
-        "AND technician_id != %s::uuid",
-        [job_id, tech_id]
-    )
-    execute_db(
-        "UPDATE job_applications SET status = 'accepted' WHERE job_id = %s::uuid AND technician_id = %s::uuid",
-        [job_id, tech_id]
-    )
-    execute_db(
-        "INSERT INTO job_assignments (job_id, technician_id, assigned_by, accepted_at) "
-        "VALUES (%s::uuid, %s::uuid, %s::uuid, NOW())",
-        [job_id, tech_id, session["user_id"]]
-    )
-    execute_db(
-        "UPDATE jobs SET assigned_to = %s::uuid, status = 'in_progress' WHERE id = %s::uuid",
-        [tech_id, job_id]
-    )
-    flash("Técnico asignado", "success")
-    return redirect(url_for("job_detail", job_id=job_id))
-
-
-@app.route("/job/<job_id>/complete", methods=["POST"])
-@login_required
-def job_complete(job_id):
-    job = query_db("SELECT * FROM jobs WHERE id = %s::uuid", [job_id], one=True)
-    if not job:
-        flash("Trabajo no encontrado", "danger")
-        return redirect(url_for("jobs"))
-    if session["role"] == "client" and str(job["client_id"]) != str(session["user_id"]):
-        flash("Solo la dueña del trabajo puede finalizarlo.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-    if session["role"] not in ("client", "admin"):
-        flash("No tienes permiso para finalizar el trabajo.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-    if job["status"] != "in_progress":
-        flash("El trabajo no está en progreso.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    execute_db(
-        "UPDATE jobs SET status = 'completed', completed_at = NOW() WHERE id = %s::uuid",
-        [job_id]
-    )
-    # Efectivo: el pago se confirma al finalizar el servicio
-    if job.get("assigned_to"):
-        execute_db(
-            "UPDATE payments SET status = 'succeeded', updated_at = NOW() "
-            "WHERE job_id = %s::uuid AND method = 'cash' AND status = 'pending'",
+    solicitudes = []
+    if str(servicio["proveedor_id"]) == str(session["user_id"]) or session["role"] == "admin":
+        solicitudes = query_db(
+            "SELECT s.*, u.nombre as cliente_nombre, u.email as cliente_email, "
+            "cl.puntaje, cl.comentario "
+            "FROM solicitudes s JOIN usuarios u ON u.id = s.cliente_id "
+            "LEFT JOIN calificaciones cl ON cl.solicitud_id = s.id "
+            "WHERE s.servicio_id = %s ORDER BY s.fecha DESC",
             [job_id]
         )
-        execute_db(
-            "INSERT INTO notifications (user_id, title, message, type, reference_id) "
-            "VALUES (%s::uuid, %s, %s, %s, %s::uuid)",
-            [str(job["assigned_to"]), "¡Trabajo finalizado!",
-             f"Confirmaron la finalización de: {job['title']}", "job_completed", job_id]
-        )
-    flash("Servicio finalizado. Recuerda calificar al técnico.", "success")
-    return redirect(url_for("job_detail", job_id=job_id))
-
-
-@app.route("/job/<job_id>/cancel", methods=["POST"])
-@login_required
-def job_cancel(job_id):
-    job = query_db("SELECT * FROM jobs WHERE id = %s::uuid", [job_id], one=True)
-    if not job:
-        flash("Trabajo no encontrado", "danger")
-        return redirect(url_for("jobs"))
-    if session["role"] == "client" and str(job["client_id"]) != str(session["user_id"]):
-        flash("No tienes permiso para cancelar este trabajo.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-    if session["role"] not in ("client", "admin"):
-        flash("No tienes permiso para cancelar el trabajo.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-    if job["status"] == "completed":
-        flash("No se puede cancelar un trabajo finalizado.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    reason = request.form.get("reason", "").strip()
-    execute_db(
-        "UPDATE jobs SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = %s WHERE id = %s::uuid",
-        [reason or "Solicitud cancelada por el cliente", job_id]
-    )
-    flash("Trabajo cancelado.", "info")
-    return redirect(url_for("job_detail", job_id=job_id))
-
-
-@app.route("/job/<job_id>/review", methods=["POST"])
-@login_required
-def job_review(job_id):
-    job = query_db("SELECT * FROM jobs WHERE id = %s::uuid", [job_id], one=True)
-    if not job or job["status"] != "completed":
-        flash("Solo puedes calificar un servicio finalizado.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-    if session["role"] == "client" and str(job["client_id"]) != str(session["user_id"]):
-        flash("Solo la dueña del trabajo puede calificar.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-    if not job.get("assigned_to"):
-        flash("No hay técnico asignado para calificar.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    try:
-        rating = int(request.form.get("rating", 0))
-    except (TypeError, ValueError):
-        rating = 0
-    if rating < 1 or rating > 5:
-        flash("La calificación debe estar entre 1 y 5 estrellas.", "danger")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    existing = query_db(
-        "SELECT id FROM job_reviews WHERE job_id = %s::uuid", [job_id], one=True
-    )
-    if existing:
-        flash("Ya calificaste este servicio.", "warning")
-        return redirect(url_for("job_detail", job_id=job_id))
-
-    execute_db(
-        """INSERT INTO job_reviews (job_id, reviewer_id, reviewee_id, rating, comment)
-           VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s)""",
-        [job_id, session["user_id"], str(job["assigned_to"]),
-         rating, request.form.get("comment", "").strip()]
-    )
-    execute_db(
-        "INSERT INTO notifications (user_id, title, message, type, reference_id) "
-        "VALUES (%s::uuid, %s, %s, %s, %s::uuid)",
-        [str(job["assigned_to"]), "¡Nueva reseña!",
-         f"Te calificaron {rating}★ en: {job['title']}", "review_added", job_id]
-    )
-    flash("¡Gracias por calificar el servicio!", "success")
-    return redirect(url_for("job_detail", job_id=job_id))
+    return render_template("job_detail.html", servicio=servicio, rating=rating,
+                           solicitudes=solicitudes)
 
 
 # ---------------------------------------------------------------------------
-# Clients
+# Solicitudes (crear y cambiar estado)
+# ---------------------------------------------------------------------------
+ESTADOS = ("pendiente", "aceptada", "terminada", "cancelada")
+
+
+@app.route("/job/<job_id>/solicitar", methods=["POST"])
+@app.route("/servicio/<job_id>/solicitar", methods=["POST"])
+@login_required
+@role_required("cliente", "admin")
+def solicitud_new(job_id):
+    servicio = query_db("SELECT * FROM servicios WHERE id = %s", [job_id], one=True)
+    if not servicio:
+        flash("Servicio no encontrado", "danger")
+        return redirect(url_for("jobs"))
+    if str(servicio["proveedor_id"]) == str(session["user_id"]):
+        flash("No puedes solicitar tu propio servicio.", "warning")
+        return redirect(url_for("job_detail", job_id=job_id))
+
+    existing = query_db(
+        "SELECT id FROM solicitudes WHERE cliente_id = %s AND servicio_id = %s "
+        "AND estado IN ('pendiente','aceptada')",
+        [session["user_id"], job_id], one=True
+    )
+    if existing:
+        flash("Ya tienes una solicitud activa para este servicio.", "warning")
+        return redirect(url_for("job_detail", job_id=job_id))
+
+    execute_db(
+        "INSERT INTO solicitudes (cliente_id, servicio_id) VALUES (%s, %s)",
+        [session["user_id"], job_id]
+    )
+    flash("Solicitud enviada. El proveedor la revisará pronto.", "success")
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/solicitud/<int:solicitud_id>/estado", methods=["POST"])
+@login_required
+def solicitud_estado(solicitud_id):
+    sol = query_db(
+        "SELECT s.*, se.proveedor_id FROM solicitudes s "
+        "JOIN servicios se ON se.id = s.servicio_id WHERE s.id = %s",
+        [solicitud_id], one=True
+    )
+    if not sol:
+        flash("Solicitud no encontrada", "danger")
+        return redirect(url_for("dashboard"))
+
+    es_cliente = str(sol["cliente_id"]) == str(session["user_id"])
+    es_proveedor = str(sol["proveedor_id"]) == str(session["user_id"])
+    es_admin = session["role"] == "admin"
+    if not (es_cliente or es_proveedor or es_admin):
+        flash("No tienes permiso sobre esta solicitud.", "danger")
+        return redirect(url_for("dashboard"))
+
+    nuevo = request.form.get("estado", "").strip()
+    if nuevo not in ESTADOS:
+        flash("Estado inválido.", "danger")
+        return redirect(url_for("dashboard"))
+
+    actual = sol["estado"]
+    if actual in ("terminada", "cancelada"):
+        flash("Esta solicitud ya está cerrada.", "warning")
+        return redirect(url_for("dashboard"))
+    if nuevo == "terminada" and not (es_cliente or es_admin):
+        flash("Solo el cliente puede marcar la solicitud como terminada.", "danger")
+        return redirect(url_for("dashboard"))
+
+    execute_db("UPDATE solicitudes SET estado = %s WHERE id = %s", [nuevo, solicitud_id])
+    flash(f"Solicitud marcada como {nuevo}.", "success")
+    return redirect(request.form.get("next") or url_for("dashboard"))
+
+
+@app.route("/solicitud/<int:solicitud_id>/calificar", methods=["POST"])
+@login_required
+@role_required("cliente")
+def solicitud_calificar(solicitud_id):
+    sol = query_db(
+        "SELECT s.*, se.proveedor_id FROM solicitudes s "
+        "JOIN servicios se ON se.id = s.servicio_id WHERE s.id = %s",
+        [solicitud_id], one=True
+    )
+    if not sol or str(sol["cliente_id"]) != str(session["user_id"]):
+        flash("Solicitud no encontrada.", "danger")
+        return redirect(url_for("dashboard"))
+    if sol["estado"] != "terminada":
+        flash("Solo puedes calificar una solicitud terminada.", "warning")
+        return redirect(url_for("dashboard"))
+
+    try:
+        puntaje = int(request.form.get("puntaje", 0))
+    except (TypeError, ValueError):
+        puntaje = 0
+    if puntaje < 1 or puntaje > 5:
+        flash("El puntaje debe estar entre 1 y 5.", "danger")
+        return redirect(url_for("dashboard"))
+
+    existing = query_db(
+        "SELECT id FROM calificaciones WHERE solicitud_id = %s", [solicitud_id], one=True
+    )
+    if existing:
+        flash("Ya calificaste esta solicitud.", "warning")
+        return redirect(url_for("dashboard"))
+
+    execute_db(
+        "INSERT INTO calificaciones (solicitud_id, puntaje, comentario) VALUES (%s, %s, %s)",
+        [solicitud_id, puntaje, request.form.get("comentario", "").strip() or None]
+    )
+    flash("¡Gracias por calificar el servicio!", "success")
+    return redirect(url_for("dashboard"))
+
+
+# ---------------------------------------------------------------------------
+# Clientes (vista de admin)
 # ---------------------------------------------------------------------------
 @app.route("/clients")
 @login_required
-@role_required("admin", "technician")
+@role_required("admin")
 def clients():
     search = request.args.get("q", "")
     query = """
-        SELECT u.id, p.first_name, p.last_name, u.email,
-               COUNT(j.id) as total_jobs,
-               SUM(CASE WHEN j.status = 'completed' THEN 1 ELSE 0 END) as completed_jobs
-        FROM users u
-        JOIN profiles p ON p.user_id = u.id
-        LEFT JOIN jobs j ON j.client_id = u.id
-        WHERE u.role = 'client' AND u.status = 'active'
+        SELECT u.id, u.nombre, u.email, u.ciudad,
+               COUNT(s.id) as total_solicitudes,
+               SUM(CASE WHEN s.estado = 'terminada' THEN 1 ELSE 0 END) as terminadas
+        FROM usuarios u
+        LEFT JOIN solicitudes s ON s.cliente_id = u.id
+        WHERE u.rol = 'cliente'
     """
     params = []
     if search:
-        query += " AND (p.first_name ILIKE %s OR p.last_name ILIKE %s OR u.email ILIKE %s)"
-        params += [f"%{search}%", f"%{search}%", f"%{search}%"]
-    query += " GROUP BY u.id, p.first_name, p.last_name, u.email ORDER BY total_jobs DESC"
+        query += " AND (u.nombre LIKE %s OR u.email LIKE %s)"
+        params += [f"%{search}%", f"%{search}%"]
+    query += " GROUP BY u.id, u.nombre, u.email, u.ciudad ORDER BY total_solicitudes DESC"
     client_list = query_db(query, params)
     return render_template("clients.html", clients=client_list, search=search)
 
 
 # ---------------------------------------------------------------------------
-# Specialties
+# Categorías
 # ---------------------------------------------------------------------------
 @app.route("/specialties")
+@app.route("/categorias")
 @login_required
 def specialties():
-    specs = query_db(
-        """SELECT s.*, COUNT(ts.technician_id) as tech_count
-           FROM specialties s
-           LEFT JOIN technician_specialties ts ON ts.specialty_id = s.id
-           GROUP BY s.id ORDER BY s.name"""
+    cats = query_db(
+        "SELECT c.*, COUNT(se.id) as tech_count "
+        "FROM categorias c LEFT JOIN servicios se ON se.categoria_id = c.id "
+        "GROUP BY c.id, c.nombre ORDER BY c.nombre"
     )
-    return render_template("specialties.html", specialties=specs)
+    return render_template("specialties.html", specialties=cats)
 
 
 # ---------------------------------------------------------------------------
-# Notifications
-# ---------------------------------------------------------------------------
-@app.route("/notifications")
-@login_required
-def notifications():
-    notes = query_db(
-        "SELECT * FROM notifications WHERE user_id = %s::uuid ORDER BY created_at DESC LIMIT 50",
-        [session["user_id"]]
-    )
-    execute_db(
-        "UPDATE notifications SET read = true WHERE user_id = %s::uuid AND read = false",
-        [session["user_id"]]
-    )
-    return render_template("notifications.html", notifications=notes)
-
-
-# ---------------------------------------------------------------------------
-# Admin: Users
+# Admin
 # ---------------------------------------------------------------------------
 @app.route("/admin/users")
 @login_required
 @role_required("admin")
 def admin_users():
-    users = query_db(
-        "SELECT u.*, p.first_name, p.last_name FROM users u "
-        "LEFT JOIN profiles p ON p.user_id = u.id ORDER BY u.created_at DESC"
-    )
+    users = query_db("SELECT * FROM usuarios ORDER BY id DESC")
     return render_template("admin_users.html", users=users)
-
-
-@app.route("/admin/user/<user_id>/toggle", methods=["POST"])
-@login_required
-@role_required("admin")
-def admin_toggle_user(user_id):
-    execute_db(
-        "UPDATE users SET status = CASE WHEN status = 'active' THEN 'inactive' ELSE 'active' END "
-        "WHERE id = %s::uuid",
-        [user_id]
-    )
-    flash("Usuario actualizado", "success")
-    return redirect(url_for("admin_users"))
 
 
 # ---------------------------------------------------------------------------

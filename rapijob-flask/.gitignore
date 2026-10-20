@@ -1,0 +1,25 @@
+# Entorno / secretos
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Base de datos local (SQLite de desarrollo)
+*.db
+*.sqlite3
+*.backup
+
+# Logs y temporales
+*.log
+*.tmp
+
+# IDE / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

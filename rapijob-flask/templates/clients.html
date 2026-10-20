@@ -16,17 +16,19 @@
             <tr>
                 <th class="px-4 py-3 text-left">Nombre</th>
                 <th class="px-4 py-3 text-left">Email</th>
-                <th class="px-4 py-3 text-center">Trabajos</th>
-                <th class="px-4 py-3 text-center">Completados</th>
+                <th class="px-4 py-3 text-left">Ciudad</th>
+                <th class="px-4 py-3 text-center">Solicitudes</th>
+                <th class="px-4 py-3 text-center">Terminadas</th>
             </tr>
         </thead>
         <tbody>
             {% for client in clients %}
             <tr class="border-t hover:bg-gray-50">
-                <td class="px-4 py-3 font-medium">{{ client.first_name }} {{ client.last_name }}</td>
+                <td class="px-4 py-3 font-medium">{{ client.nombre }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ client.email }}</td>
-                <td class="px-4 py-3 text-center">{{ client.total_jobs }}</td>
-                <td class="px-4 py-3 text-center text-green-600">{{ client.completed_jobs }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ client.ciudad or '-' }}</td>
+                <td class="px-4 py-3 text-center">{{ client.total_solicitudes }}</td>
+                <td class="px-4 py-3 text-center text-green-600">{{ client.terminadas }}</td>
             </tr>
             {% endfor %}
         </tbody>
