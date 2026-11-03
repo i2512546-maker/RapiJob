@@ -172,9 +172,19 @@ def subir_adjunto(orden_id: int, archivo: UploadFile = File(...),
     allowed = {"image/jpeg", "image/png", "image/webp"}
     if archivo.content_type not in allowed:
         raise HTTPException(status_code=415, detail="Solo se permiten imágenes JPG, PNG o WEBP.")
+    existing_count = db.query(AdjuntoOrden).filter(AdjuntoOrden.id_orden == orden_id).count()
+    if existing_count >= 5:
+        raise HTTPException(status_code=409, detail="Cada solicitud permite hasta 5 imágenes.")
     content = archivo.file.read(4 * 1024 * 1024 + 1)
     if not content or len(content) > 4 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Cada imagen debe pesar como máximo 4 MB.")
+    valid_image = (
+        (archivo.content_type == "image/jpeg" and content.startswith(b"\\xff\\xd8\\xff")) or
+        (archivo.content_type == "image/png" and content.startswith(b"\\x89PNG\\r\\n\\x1a\\n")) or
+        (archivo.content_type == "image/webp" and content.startswith(b"RIFF") and content[8:12] == b"WEBP")
+    )
+    if not valid_image:
+        raise HTTPException(status_code=415, detail="El archivo no coincide con el formato de imagen declarado.")
     item = AdjuntoOrden(
         id_orden=orden.id_orden,
         nombre_archivo=(archivo.filename or "evidencia").replace("/", "_").replace("\\", "_")[:255],
