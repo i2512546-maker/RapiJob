@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from database import get_db
-from app.models.models import OrdenTrabajo, Servicio, SlotCita, PerfilTecnico
+from app.models.models import OrdenTrabajo, Servicio, SlotCita, PerfilTecnico, PerfilTecnicoPublico
 from app.schemas.schemas import OrdenTrabajoCreate, OrdenTrabajoResponse
 from app.middleware.auth import get_current_user
 
@@ -32,8 +32,20 @@ def crear_orden(orden: OrdenTrabajoCreate, db: Session = Depends(get_db), curren
         db.commit()
         raise HTTPException(status_code=409, detail="El horario acaba de completarse. Selecciona otro.")
 
+    tecnico_id = None
+    if orden.id_tecnico is not None:
+        perfil_publico = db.query(PerfilTecnicoPublico).filter(
+            PerfilTecnicoPublico.id_usuario == orden.id_tecnico,
+            PerfilTecnicoPublico.aprobado.is_(True),
+            PerfilTecnicoPublico.disponible.is_(True),
+        ).first()
+        if not perfil_publico:
+            raise HTTPException(status_code=409, detail="El técnico seleccionado no está disponible para recibir solicitudes.")
+        tecnico_id = perfil_publico.id_usuario
+
     nueva = OrdenTrabajo(
         id_cliente=current_user.user_id,
+        id_tecnico=tecnico_id,
         id_servicio=servicio.id_servicio,
         id_slot_cita=slot.id_slot,
         fecha_programada=slot.hora_inicio,
