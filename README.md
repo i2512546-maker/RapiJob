@@ -1,109 +1,88 @@
-# RapiJob
+# RapiJob · Plataforma web
 
-Plataforma web para conectar clientes con técnicos de computadoras, laptops, software y redes.
+RapiJob es una aplicación web responsive para conectar clientes con técnicos profesionales en Huancayo, El Tambo y Chilca. La nueva aplicación reemplaza la interfaz anterior por una SPA construida con React y TypeScript.
 
-## Funciones
-- Registro e inicio de sesión con contraseña protegida y token JWT.
-- Roles de cliente y técnico.
-- Catálogo público de servicios y precios referenciales.
-- Precios expresados en soles peruanos (PEN).
-- Solicitud de citas en horarios disponibles.
-- Panel de solicitudes del cliente.
-- Panel del técnico para aceptar y cancelar solicitudes.
-- No se procesan pagos ni se solicitan datos bancarios. El precio publicado es orientativo; el técnico confirma el importe final después de revisar el problema.
+## Tecnologías
+- React 18 + TypeScript + Vite.
+- Supabase Auth, PostgreSQL, Storage y Row Level Security (RLS).
+- Google Maps JavaScript API para seleccionar ubicaciones y mostrar técnicos.
+- FastAPI sirve el build web y entrega configuración pública en runtime.
+- Docker multi-stage (Node para compilar y Python para servir).
 
-## Tecnología
-- Backend: FastAPI + SQLAlchemy.
-- Base de datos: MySQL 8 (Docker) o SQLite para desarrollo.
-- Frontend: HTML, CSS y JavaScript servido por FastAPI.
-- Autenticación: JWT y contraseñas con bcrypt.
+## Funciones incluidas
+- Acceso con correo y contraseña, registro de clientes y sesión persistente.
+- Perfil personal editable y panel distinto según rol.
+- Alta/promoción de técnicos restringida a administradores.
+- Directorio de técnicos aprobados y disponibles desde Supabase.
+- Solicitud de servicio con categoría, descripción, fecha/hora, dirección, coordenadas y fotos.
+- Mapa con selección de ubicación y marcadores de técnicos disponibles.
+- Panel cliente para consultar solicitudes y cancelar las pendientes.
+- Panel técnico para consultar trabajos asignados, aceptar, marcar en camino, iniciar y completar.
+- Administración para agregar un técnico a partir de una cuenta ya registrada.
+- Categorías iniciales de los 12 rubros solicitados.
 
-## Ejecutar localmente con Docker
-Requiere Docker Desktop y Docker Compose.
+## Configuración obligatoria de Supabase
+
+1. Crea un proyecto en https://supabase.com.
+2. Abre **SQL Editor** y ejecuta el contenido completo de `supabase/schema.sql`.
+3. En **Authentication → URL Configuration**, registra el dominio de producción y `http://localhost:5173` para desarrollo.
+4. Crea tu cuenta de RapiJob desde la web.
+5. En SQL Editor, convierte esa cuenta en administradora ejecutando:
+   ```sql
+   update public.profiles set role = 'admin' where email = 'TU_CORREO@EJEMPLO.COM';
+   ```
+   Sustituye el correo por el de tu cuenta. No existe un botón público para crear administradores.
+6. En Supabase → Project Settings → API copia **Project URL** y **anon/public key**. Nunca uses ni publiques la clave `service_role`.
+
+El SQL crea perfiles automáticamente al registrarse, las 12 categorías, tablas de solicitudes, perfiles técnicos, disponibilidad, reseñas, fotografías y políticas RLS. Los datos de clientes y solicitudes no son públicos. El directorio usa una vista que expone únicamente datos profesionales de técnicos aprobados y disponibles.
+
+## Google Maps
+
+En Google Cloud habilita **Maps JavaScript API** y **Geocoding API**. Crea una clave de navegador y restríngela por dominio HTTP y por APIs habilitadas. Configura esa clave como `GOOGLE_MAPS_API_KEY` en Render.
+
+## Desplegar en Render
+
+1. Conecta el repositorio `i2512546-maker/RapiJob` a Render usando el archivo `render.yaml`.
+2. Render debe construir desde la raíz del repositorio (no establezcas `rootDir: backend`), porque Docker necesita leer también la carpeta `web`.
+3. En el entorno del servicio añade:
+   - `SUPABASE_URL`: URL de tu proyecto Supabase.
+   - `SUPABASE_ANON_KEY`: clave anon/public de Supabase.
+   - `GOOGLE_MAPS_API_KEY`: clave de Google Maps.
+4. Despliega el último commit y comprueba `/health`.
+
+La aplicación lee estas variables en cada inicio mediante `/config.json`, por lo que no se incrustan en el bundle durante la compilación. La clave anon de Supabase está diseñada para el navegador; RLS es obligatorio. Nunca configures `service_role` en el frontend.
+
+## Ejecutar localmente
+
+Requisitos: Node.js 20+ y Python 3.11+.
 
 ```bash
-docker compose up --build
+cd web
+npm install
+npm run dev
 ```
 
-Abrir:
-- Web: http://localhost:8000
-- API: http://localhost:8000/docs
-- Estado: http://localhost:8000/health
+Para que el frontend local pueda leer la configuración, ejecuta también FastAPI en otro terminal con las variables `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `GOOGLE_MAPS_API_KEY` definidas, o usa Docker desde la raíz:
 
-El backend crea las tablas desde los modelos al iniciar y agrega servicios referenciales y horarios iniciales cuando la base está vacía. No importes el antiguo archivo SQL de demostración sobre una base ya existente: su estructura anterior no coincide completamente con los modelos actuales.
-
-Para detener:
 ```bash
-docker compose down
-```
+docker build -f backend/Dockerfile -t rapijob .
+docker run --rm -p 10000:10000 \
+  -e SUPABASE_URL=https://TU_PROYECTO.supabase.co \
+  -e SUPABASE_ANON_KEY=TU_ANON_KEY \
+  -e GOOGLE_MAPS_API_KEY=TU_MAPS_KEY rapijob
+``
 
-Los datos de MySQL se conservan en el volumen `mysql_data`. Para reiniciar la base desde cero (esto elimina los datos):
-```bash
-docker compose down -v
-docker compose up --build
-```
+Abre `http://localhost:10000`.
 
-## Ejecutar el backend sin Docker
-```bash
-cd backend
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
+## Reglas importantes
+- Solo el administrador puede cambiar el rol de una cuenta y aprobar técnicos.
+- Para agregar a un profesional, primero debe crear una cuenta normal; el administrador la busca por correo y la registra como técnico.
+- No se inventan técnicos, calificaciones ni reseñas.
+- La plataforma no procesa pagos ni almacena datos bancarios.
+- Los estados se actualizan al interactuar con los controles del panel. La actualización en vivo con Supabase Realtime, notificaciones push, chat y pasarela de pagos son ampliaciones pendientes.
+- Las reseñas y disponibilidad tienen tablas y políticas preparadas; la interfaz para administrar horarios semanales y publicar reseñas debe ampliarse antes de considerarlas funciones terminadas.
 
-Por defecto se usa SQLite en `backend/rapijob.db`. Para MySQL, configura `DATABASE_URL` en el entorno. En producción define una `SECRET_KEY` larga y aleatoria y una base de datos persistente.
-
-## API principal
-- `POST /api/auth/registro`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `GET /api/servicios/`
-- `GET /api/servicios/{id}`
-- `GET /api/admin/slots-citas/`
-- `POST /api/ordenes/`
-- `GET /api/ordenes/`
-- `PATCH /api/ordenes/{id}/aceptar`
-- `PATCH /api/ordenes/{id}/cancelar`
-
-## Importante sobre precios
-Los importes del catálogo son referencias iniciales para Perú, no cotizaciones garantizadas ni pagos realizados. El técnico debe confirmar el precio final según el diagnóstico, repuestos y complejidad del trabajo.
-
-## Rama de mantenimiento
-Los cambios de corrección se trabajan en `fix/rapijob-full-stack` para poder revisarlos antes de integrarlos en `main`.
-
-## Portal ampliado y mapa de técnicos
-
-La página incluye categorías de servicios, un directorio con perfiles de demostración y filtros por ciudad, especialidad, disponibilidad y distancia. Los perfiles y reseñas de muestra son ficticios y no representan técnicos registrados.
-
-### Activar Google Maps
-
-1. Crea una clave de navegador en Google Cloud y habilita **Maps JavaScript API** y **Geocoding API**.
-2. Restringe la clave por los dominios de tu sitio (por ejemplo, `rapijob-2.onrender.com`) y por las APIs anteriores.
-3. En Render, abre el servicio `rapijob-api`, entra a **Environment** y agrega `GOOGLE_MAPS_API_KEY` con esa clave.
-4. Guarda los cambios y vuelve a desplegar.
-
-La clave se entrega al navegador porque Google Maps JavaScript la necesita; por eso debe tener restricciones por dominio y API. No uses una clave de servidor sin restricciones en esta variable.
-
-### Alcance actual
-
-- El catálogo y las solicitudes utilizan la API FastAPI existente.
-- El directorio de técnicos, reseñas, ubicaciones y marcadores visibles en el mapa son datos demostrativos.
-- La selección de ubicación y la geolocalización requieren que Google Maps esté configurado y que el usuario otorgue permiso.
-- El sistema todavía no incluye carga persistente de fotografías, verificación administrativa de técnicos, chat/seguimiento en tiempo real ni integración con Supabase. Estas funciones requieren ampliar el backend y configurar servicios externos.
-
-
-## Perfiles reales, disponibilidad y solicitudes
-
-- Los técnicos registrados completan su perfil desde el panel técnico. Los perfiles nuevos o modificados quedan pendientes de aprobación.
-- El directorio público solo muestra perfiles aprobados y usa datos guardados en la base de datos; ya no utiliza técnicos ficticios.
-- El administrador debe configurar `RAPIJOB_ADMIN_EMAIL` en Render con el correo de una cuenta existente. Esa cuenta podrá revisar y aprobar perfiles desde el panel de administración.
-- Los técnicos publican sus propios horarios desde el panel. Los horarios quedan asociados al técnico y el cliente ve los horarios del técnico seleccionado.
-- Las solicitudes pueden incluir técnico elegido, dirección, coordenadas y fotos JPG/PNG/WEBP (hasta 4 MB por archivo). Los adjuntos se guardan en la base de datos.
-- El técnico puede aceptar, iniciar y completar una solicitud. El cliente puede calificar un trabajo completado.
-- Las tablas nuevas se crean mediante `Base.metadata.create_all` al iniciar la aplicación. Las columnas existentes no se alteran automáticamente.
-
-### Configuración pendiente en Render
-
-Añade la variable `RAPIJOB_ADMIN_EMAIL` con el correo de la cuenta que administrará aprobaciones. Mantén también `GOOGLE_MAPS_API_KEY` para activar el mapa. No publiques claves privadas en el repositorio.
+## Seguridad
+- Row Level Security está habilitado en las tablas principales.
+- El SQL incluye protección para impedir que un usuario cambie su propio rol o apruebe su perfil técnico.
+- Configura políticas y dominios de autenticación antes de abrir el servicio al público.
