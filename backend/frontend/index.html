@@ -136,10 +136,13 @@
         <div class="section-heading"><div><div class="eyebrow">CONTRATAR UN TÉCNICO</div><h2>Solicita ayuda <em>en minutos.</em></h2></div></div>
         <form id="orderForm" class="booking-card">
           <input type="hidden" id="selectedTechnicianId" />
+          <input type="hidden" id="selectedLatitude" />
+          <input type="hidden" id="selectedLongitude" />
           <div class="two-col"><label>Servicio<select id="serviceSelect" required><option value="">Selecciona un servicio</option></select></label><label>Horario disponible<select id="slotSelect" required><option value="">Cargando horarios...</option></select></label></div>
           <div class="two-col"><label>Ubicación<input id="ubicacion" required minlength="5" placeholder="Dirección donde se realizará el servicio" /></label><label>Precio estimado<small>Se muestra como referencia. No se realiza ningún cobro en la plataforma.</small></label></div>
           <label>¿Qué necesitas?<textarea id="descripcion" required minlength="10" placeholder="Describe el trabajo que necesitas..."></textarea></label>
           <label>Notas adicionales<textarea id="notas" placeholder="Instrucciones opcionales"></textarea></label>
+          <label>Fotos del problema (JPG, PNG o WEBP; máximo 4 MB cada una)<input id="orderPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple /></label>
           <button type="submit" class="button button-primary">Contratar técnico <span>→</span></button>
           <div id="orderMessage" class="message"></div>
         </form>
