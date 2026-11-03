@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from database import get_db
-from app.models.models import SlotCita, SlotTecnico
+from app.models.models import SlotCita, SlotTecnico, PerfilTecnicoPublico
 from app.schemas.schemas import SlotCitaCreate, SlotCitaResponse
 from app.middleware.auth import get_current_user
 
@@ -20,6 +20,12 @@ def verificar_admin(current_user=Depends(get_current_user)):
 
 @router.post("/", response_model=SlotCitaResponse, status_code=status.HTTP_201_CREATED)
 def crear_slot_cita(slot: SlotCitaCreate, db: Session = Depends(get_db), tecnico=Depends(verificar_admin)):
+    public_profile = db.query(PerfilTecnicoPublico).filter(
+        PerfilTecnicoPublico.id_usuario == tecnico.user_id,
+        PerfilTecnicoPublico.aprobado.is_(True),
+    ).first()
+    if not public_profile:
+        raise HTTPException(status_code=403, detail="Tu perfil debe estar aprobado para publicar horarios.")
     if slot.hora_inicio >= slot.hora_fin:
         raise HTTPException(status_code=400, detail="La hora de inicio debe ser anterior a la hora de fin.")
     if slot.hora_inicio <= datetime.utcnow():
