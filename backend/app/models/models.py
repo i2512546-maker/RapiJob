@@ -173,3 +173,24 @@ class ResenaCalificacion(Base):
     fecha_resena = Column(DateTime, default=datetime.utcnow)
     respuesta_tecnico = Column(Text)
     fecha_respuesta = Column(DateTime)
+
+
+class PerfilTecnicoPublico(Base):
+    """Datos públicos y ubicación declarada por cada técnico registrado."""
+
+    __tablename__ = "perfiles_tecnicos_publicos"
+
+    id_perfil_publico = Column(Integer, primary_key=True, index=True)
+    id_usuario = Column(Integer, ForeignKey("usuarios.id_usuario", ondelete="CASCADE"), unique=True, nullable=False, index=True)
+    especialidad = Column(String(100), nullable=False)
+    ciudad = Column(String(80), nullable=False)
+    distrito = Column(String(100), nullable=False)
+    latitud = Column(Numeric(10, 7))
+    longitud = Column(Numeric(10, 7))
+    tarifa_desde = Column(Numeric(10, 2), nullable=False, default=0)
+    experiencia_anios = Column(Integer, nullable=False, default=0)
+    descripcion_publica = Column(Text)
+    foto_url = Column(String(500))
+    disponible = Column(Boolean, nullable=False, default=True)
+    aprobado = Column(Boolean, nullable=False, default=False)
+    actualizado_en = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
