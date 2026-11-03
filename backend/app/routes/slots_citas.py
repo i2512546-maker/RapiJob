@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from database import get_db
-from app.models.models import SlotCita
+from app.models.models import SlotCita, SlotTecnico
 from app.schemas.schemas import SlotCitaCreate, SlotCitaResponse
 from app.middleware.auth import get_current_user
 
@@ -24,7 +24,8 @@ def crear_slot_cita(slot: SlotCitaCreate, db: Session = Depends(get_db), tecnico
         raise HTTPException(status_code=400, detail="La hora de inicio debe ser anterior a la hora de fin.")
     if slot.hora_inicio <= datetime.utcnow():
         raise HTTPException(status_code=400, detail="El horario debe ser futuro.")
-    conflicto = db.query(SlotCita).filter(
+    conflicto = db.query(SlotCita).join(SlotTecnico, SlotTecnico.id_slot == SlotCita.id_slot).filter(
+        SlotTecnico.id_tecnico == tecnico.user_id,
         SlotCita.hora_inicio < slot.hora_fin,
         SlotCita.hora_fin > slot.hora_inicio,
         SlotCita.estado != "bloqueado",
@@ -36,18 +37,22 @@ def crear_slot_cita(slot: SlotCitaCreate, db: Session = Depends(get_db), tecnico
         capacidad_maxima=slot.capacidad_maxima, reservas_actuales=0, estado="disponible",
     )
     db.add(nuevo)
+    db.flush()
+    db.add(SlotTecnico(id_slot=nuevo.id_slot, id_tecnico=tecnico.user_id))
     db.commit()
     db.refresh(nuevo)
     return nuevo
 
 
 @router.get("/", response_model=list[SlotCitaResponse])
-def obtener_slots_disponibles(fecha_desde: datetime | None = None, fecha_hasta: datetime | None = None, db: Session = Depends(get_db)):
+def obtener_slots_disponibles(fecha_desde: datetime | None = None, fecha_hasta: datetime | None = None, id_tecnico: int | None = None, db: Session = Depends(get_db)):
     query = db.query(SlotCita).filter(
         SlotCita.estado == "disponible",
         SlotCita.reservas_actuales < SlotCita.capacidad_maxima,
         SlotCita.hora_inicio > datetime.utcnow(),
     )
+    if id_tecnico is not None:
+        query = query.join(SlotTecnico, SlotTecnico.id_slot == SlotCita.id_slot).filter(SlotTecnico.id_tecnico == id_tecnico)
     if fecha_desde:
         query = query.filter(SlotCita.hora_inicio >= fecha_desde)
     if fecha_hasta:
