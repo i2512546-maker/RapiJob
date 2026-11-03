@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react'; import type {FormEvent} from 'react';
 import {ArrowRight,ArrowUpRight,BriefcaseBusiness,CalendarDays,CheckCircle2,ChevronDown,ClipboardList,Clock3,HardHat,Home,LogOut,MapPin,Menu,Plus,Search,ShieldCheck,Star,UserRound,Users, Wrench,X, Zap} from 'lucide-react';
-import {loadConfig,supabase,PublicConfig,Profile,Category,Job} from './lib/supabase';
+import {loadConfig,supabase} from './lib/supabase'; import type {PublicConfig,Profile,Category,Job} from './lib/supabase';
 import MapPicker from './components/MapPicker';
 
 const fallbackCategories=[['Electricistas','zap','⚡'],['Plomeros','plomeros','🚰'],['Gasfiteros','gasfiteros','🔧'],['Computadoras y laptops','computadoras','💻'],['Celulares','celulares','📱'],['Instaladores','instaladores','🧰'],['Hogar','hogar','🏠'],['Refrigeración','refrigeracion','❄️'],['Pintores','pintores','🎨'],['Carpinteros','carpinteros','🪚'],['Mecánicos','mecanicos','🚗'],['Otros','otros','🛠️']];
