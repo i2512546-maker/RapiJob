@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js'; import type { SupabaseClient } from '@supabase/supabase-js';
 export type PublicConfig={supabaseUrl:string;supabaseAnonKey:string;googleMapsApiKey:string};
 export async function loadConfig():Promise<PublicConfig>{const r=await fetch('/config.json');if(!r.ok)throw new Error('No se pudo leer la configuración del servidor.');return r.json();}
 let client:SupabaseClient|null=null;
