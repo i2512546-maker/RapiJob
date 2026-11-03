@@ -92,3 +92,18 @@ La clave se entrega al navegador porque Google Maps JavaScript la necesita; por 
 - El directorio de técnicos, reseñas, ubicaciones y marcadores visibles en el mapa son datos demostrativos.
 - La selección de ubicación y la geolocalización requieren que Google Maps esté configurado y que el usuario otorgue permiso.
 - El sistema todavía no incluye carga persistente de fotografías, verificación administrativa de técnicos, chat/seguimiento en tiempo real ni integración con Supabase. Estas funciones requieren ampliar el backend y configurar servicios externos.
+
+
+## Perfiles reales, disponibilidad y solicitudes
+
+- Los técnicos registrados completan su perfil desde el panel técnico. Los perfiles nuevos o modificados quedan pendientes de aprobación.
+- El directorio público solo muestra perfiles aprobados y usa datos guardados en la base de datos; ya no utiliza técnicos ficticios.
+- El administrador debe configurar `RAPIJOB_ADMIN_EMAIL` en Render con el correo de una cuenta existente. Esa cuenta podrá revisar y aprobar perfiles desde el panel de administración.
+- Los técnicos publican sus propios horarios desde el panel. Los horarios quedan asociados al técnico y el cliente ve los horarios del técnico seleccionado.
+- Las solicitudes pueden incluir técnico elegido, dirección, coordenadas y fotos JPG/PNG/WEBP (hasta 4 MB por archivo). Los adjuntos se guardan en la base de datos.
+- El técnico puede aceptar, iniciar y completar una solicitud. El cliente puede calificar un trabajo completado.
+- Las tablas nuevas se crean mediante `Base.metadata.create_all` al iniciar la aplicación. Las columnas existentes no se alteran automáticamente.
+
+### Configuración pendiente en Render
+
+Añade la variable `RAPIJOB_ADMIN_EMAIL` con el correo de la cuenta que administrará aprobaciones. Mantén también `GOOGLE_MAPS_API_KEY` para activar el mapa. No publiques claves privadas en el repositorio.
