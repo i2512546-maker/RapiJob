@@ -6,7 +6,7 @@
   const centers = {"Huancayo":{lat:-12.0678,lng:-75.2100},"El Tambo":{lat:-12.0470,lng:-75.2200},"Chilca":{lat:-12.0900,lng:-75.2050}};
   const $=s=>document.querySelector(s);
   let technicians=[],map=null,geocoder=null,selectedMarker=null,clientLocation=null,markers=[];
-  const apiBase=()=>{const saved=(localStorage.getItem("rapijob_api_base")||"").trim().replace(/\/$/,"");return saved||location.origin;};
+  const apiBase=()=>{const saved=(localStorage.getItem("rapijob_api_base")||"").trim().replace(/\/$/,"");const local=/^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(saved);const production=!["localhost","127.0.0.1"].includes(location.hostname);return saved&&!(production&&local)?saved:location.origin;};
   const token=()=>localStorage.getItem("rapijob_token")||"";
   const authHeaders=()=>{const h={"Accept":"application/json"};if(token())h.Authorization="Bearer "+token();return h;};
   const distanceKm=(a,b)=>{const rad=n=>n*Math.PI/180,dLat=rad(b.lat-a.lat),dLng=rad(b.lng-a.lng),h=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;return 6371*2*Math.asin(Math.sqrt(h));};
