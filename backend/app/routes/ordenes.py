@@ -116,12 +116,17 @@ def aceptar_orden(orden_id: int, db: Session = Depends(get_db), current_user=Dep
     if current_user.tipo_usuario != "tecnico":
         raise HTTPException(status_code=403, detail="Solo los técnicos pueden aceptar solicitudes.")
     perfil = db.query(PerfilTecnico).filter(PerfilTecnico.id_usuario == current_user.user_id).first()
-    if not perfil:
-        raise HTTPException(status_code=409, detail="Completa tu perfil técnico antes de aceptar solicitudes.")
+    perfil_publico = db.query(PerfilTecnicoPublico).filter(
+        PerfilTecnicoPublico.id_usuario == current_user.user_id,
+        PerfilTecnicoPublico.aprobado.is_(True),
+        PerfilTecnicoPublico.disponible.is_(True),
+    ).first()
+    if not perfil or not perfil_publico:
+        raise HTTPException(status_code=409, detail="Completa tu perfil y espera la aprobación del administrador antes de aceptar solicitudes.")
     orden = db.query(OrdenTrabajo).filter(OrdenTrabajo.id_orden == orden_id).with_for_update().first()
     if not orden:
         raise HTTPException(status_code=404, detail="Solicitud no encontrada.")
-    if orden.estado_orden != "pendiente" or orden.id_tecnico is not None:
+    if orden.estado_orden != "pendiente" or orden.id_tecnico not in (None, current_user.user_id):
         raise HTTPException(status_code=409, detail="Esta solicitud ya fue tomada o no está disponible.")
     orden.id_tecnico = current_user.user_id
     orden.estado_orden = "aceptada"
@@ -219,6 +224,9 @@ def completar_orden(orden_id: int, db: Session = Depends(get_db), current_user=D
         raise HTTPException(status_code=409, detail="La solicitud debe estar en progreso para completarla.")
     orden.estado_orden = "completada"
     orden.fecha_completada = datetime.utcnow()
+    profile = db.query(PerfilTecnico).filter_by(id_usuario=current_user.user_id).first()
+    if profile:
+        profile.numero_trabajos_completados = (profile.numero_trabajos_completados or 0) + 1
     db.commit()
     db.refresh(orden)
     return orden
