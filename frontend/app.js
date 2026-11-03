@@ -18,6 +18,12 @@ function getApiBase() {
     .trim().replace(/\/$/, '');
 }
 
+function parseServerDate(value) {
+  if (!value) return null;
+  // FastAPI serializa fechas sin zona cuando SQLAlchemy almacena UTC naive.
+  return new Date(/(Z|[+-]\d{2}:\d{2})$/.test(value) ? value : value + 'Z');
+}
+
 function money(value) {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(Number(value || 0));
 }
@@ -106,8 +112,8 @@ async function loadBookingOptions() {
     const slots = await apiFetch('/api/admin/slots-citas/');
     $('#slotSelect').innerHTML = '<option value="">Selecciona un horario</option>' +
       slots.map((slot) => {
-        const start = new Date(slot.hora_inicio);
-        const end = new Date(slot.hora_fin);
+        const start = parseServerDate(slot.hora_inicio);
+        const end = parseServerDate(slot.hora_fin);
         return \`<option value="\${slot.id_slot}">\${start.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })} - \${end.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</option>\`;
       }).join('');
     if (!slots.length) $('#slotSelect').innerHTML = '<option value="">No hay horarios disponibles</option>';
@@ -127,7 +133,7 @@ async function loadOrders() {
         <span class="order-status">\${escapeHtml(order.estado_orden)}</span>
         <h3>Solicitud #\${order.id_orden}</h3>
         <p>\${escapeHtml(order.descripcion_problema)}</p>
-        <p><strong>Fecha:</strong> \${new Date(order.fecha_programada).toLocaleString('es-PE')}</p>
+        <p><strong>Fecha:</strong> \${parseServerDate(order.fecha_programada).toLocaleString('es-PE')}</p>
         <p><strong>Ubicación:</strong> \${escapeHtml(order.ubicacion_servicio)}</p>
         <p><strong>Precio referencial:</strong> \${money(order.precio_final)}</p>
         \${state.user.tipo_usuario === 'tecnico' && order.estado_orden === 'pendiente' ? \`<button class="button button-primary accept-order" data-id="\${order.id_orden}">Aceptar solicitud</button>\` : ''}
