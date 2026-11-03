@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from config import get_settings
 from database import Base, engine, SessionLocal
-from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas
+from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas, portal
 from app.models.models import CategoriaServicio, Servicio, SlotCita
 
 settings = get_settings()
@@ -33,6 +33,7 @@ app.include_router(servicios.router)
 app.include_router(ordenes.router)
 app.include_router(metodos_pago.router)
 app.include_router(slots_citas.router)
+app.include_router(portal.router)
 
 FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
 if FRONTEND_DIR.exists():
