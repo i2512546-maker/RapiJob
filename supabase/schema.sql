@@ -102,3 +102,10 @@ do $$ begin
   alter publication supabase_realtime add table public.service_requests;
 exception when duplicate_object then null;
 end $$;
+
+create policy "request participants read uploaded images" on storage.objects for select to authenticated using(
+ bucket_id='request-photos' and exists(
+  select 1 from public.request_photos p join public.service_requests r on r.id=p.request_id
+  where p.storage_path=name and (r.client_id=auth.uid() or r.technician_id=auth.uid() or public.is_admin())
+ )
+);
