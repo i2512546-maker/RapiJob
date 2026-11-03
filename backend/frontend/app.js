@@ -182,6 +182,9 @@ async function loadOrders() {
         <p><strong>Ubicación:</strong> \${escapeHtml(order.ubicacion_servicio)}</p>
         <p><strong>Precio referencial:</strong> \${money(order.precio_final)}</p>
         \${state.user.tipo_usuario === 'tecnico' && order.estado_orden === 'pendiente' ? \`<button class="button button-primary accept-order" data-id="\${order.id_orden}">Aceptar solicitud</button>\` : ''}
+        \${state.user.tipo_usuario === 'tecnico' && order.estado_orden === 'aceptada' ? \`<button class="button button-primary start-order" data-id="\${order.id_orden}">Iniciar trabajo</button>\` : ''}
+        \${state.user.tipo_usuario === 'tecnico' && order.estado_orden === 'en_progreso' ? \`<button class="button button-primary complete-order" data-id="\${order.id_orden}">Marcar como completado</button>\` : ''}
+        \${state.user.tipo_usuario === 'cliente' && order.estado_orden === 'completada' && !order.tiene_resena ? \`<form class="review-order" data-id="\${order.id_orden}"><label>Califica al técnico<select name="calificacion_tecnico" required><option value="">Estrellas</option><option value="5">5 - Excelente</option><option value="4">4 - Muy bueno</option><option value="3">3 - Bueno</option><option value="2">2 - Regular</option><option value="1">1 - Malo</option></select></label><label>Comentario<textarea name="comentario" maxlength="500"></textarea></label><input type="hidden" name="calificacion_servicio" value="5"><button class="button button-outline" type="submit">Enviar calificación</button></form>\` : ''}
         \${order.estado_orden === 'pendiente' || order.estado_orden === 'aceptada' ? \`<button class="button button-outline cancel-order" data-id="\${order.id_orden}">Cancelar</button>\` : ''}
       </article>\`).join('') : '<div class="empty-state">Todavía no tienes solicitudes.</div>';
 
