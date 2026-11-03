@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from database import get_db
-from app.models.models import OrdenTrabajo, Servicio, SlotCita, PerfilTecnico, PerfilTecnicoPublico, UbicacionOrden, AdjuntoOrden
+from app.models.models import OrdenTrabajo, Servicio, SlotCita, PerfilTecnico, PerfilTecnicoPublico, UbicacionOrden, AdjuntoOrden, SlotTecnico
 from app.schemas.schemas import OrdenTrabajoCreate, OrdenTrabajoResponse
 from app.middleware.auth import get_current_user
 
@@ -43,6 +43,12 @@ def crear_orden(orden: OrdenTrabajoCreate, db: Session = Depends(get_db), curren
         if not perfil_publico:
             raise HTTPException(status_code=409, detail="El técnico seleccionado no está disponible para recibir solicitudes.")
         tecnico_id = perfil_publico.id_usuario
+        asignacion = db.query(SlotTecnico).filter(
+            SlotTecnico.id_slot == slot.id_slot,
+            SlotTecnico.id_tecnico == tecnico_id,
+        ).first()
+        if not asignacion:
+            raise HTTPException(status_code=409, detail="El horario elegido no pertenece al técnico seleccionado.")
 
     nueva = OrdenTrabajo(
         id_cliente=current_user.user_id,
@@ -179,3 +185,34 @@ def listar_adjuntos(orden_id: int, db: Session = Depends(get_db), current_user=D
         raise HTTPException(status_code=403, detail="No tienes permiso para ver estos archivos.")
     return db.query(AdjuntoOrden.id_adjunto, AdjuntoOrden.nombre_archivo, AdjuntoOrden.tipo_contenido,
                     AdjuntoOrden.fecha_subida).filter(AdjuntoOrden.id_orden == orden_id).all()
+
+
+@router.patch("/{orden_id}/iniciar", response_model=OrdenTrabajoResponse)
+def iniciar_orden(orden_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    if current_user.tipo_usuario != "tecnico":
+        raise HTTPException(status_code=403, detail="Solo el técnico asignado puede iniciar el trabajo.")
+    orden = db.query(OrdenTrabajo).filter(OrdenTrabajo.id_orden == orden_id).first()
+    if not orden or orden.id_tecnico != current_user.user_id:
+        raise HTTPException(status_code=404, detail="Solicitud asignada no encontrada.")
+    if orden.estado_orden != "aceptada":
+        raise HTTPException(status_code=409, detail="La solicitud debe estar aceptada para iniciar.")
+    orden.estado_orden = "en_progreso"
+    db.commit()
+    db.refresh(orden)
+    return orden
+
+
+@router.patch("/{orden_id}/completar", response_model=OrdenTrabajoResponse)
+def completar_orden(orden_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    if current_user.tipo_usuario != "tecnico":
+        raise HTTPException(status_code=403, detail="Solo el técnico asignado puede completar el trabajo.")
+    orden = db.query(OrdenTrabajo).filter(OrdenTrabajo.id_orden == orden_id).first()
+    if not orden or orden.id_tecnico != current_user.user_id:
+        raise HTTPException(status_code=404, detail="Solicitud asignada no encontrada.")
+    if orden.estado_orden != "en_progreso":
+        raise HTTPException(status_code=409, detail="La solicitud debe estar en progreso para completarla.")
+    orden.estado_orden = "completada"
+    orden.fecha_completada = datetime.utcnow()
+    db.commit()
+    db.refresh(orden)
+    return orden
