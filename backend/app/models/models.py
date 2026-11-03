@@ -5,6 +5,7 @@ from sqlalchemy import (
     Numeric, String, Text
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 from database import Base
 
@@ -214,7 +215,7 @@ class AdjuntoOrden(Base):
     id_orden = Column(Integer, ForeignKey("ordenes_trabajo.id_orden", ondelete="CASCADE"), nullable=False, index=True)
     nombre_archivo = Column(String(255), nullable=False)
     tipo_contenido = Column(String(100), nullable=False)
-    contenido_base64 = Column(Text, nullable=False)
+    contenido_base64 = Column(Text().with_variant(LONGTEXT(), "mysql"), nullable=False)
     fecha_subida = Column(DateTime, default=datetime.utcnow)
 
 
