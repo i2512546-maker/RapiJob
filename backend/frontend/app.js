@@ -330,6 +330,7 @@ function updateAuthUI() {
 
   if (loggedIn && state.user.tipo_usuario === 'cliente') loadBookingOptions();
   if (loggedIn) loadOrders();
+  window.dispatchEvent(new Event('rapijob:session-updated'));
 }
 
 async function loadProfile() {
