@@ -1,142 +1,57 @@
 import os
-from datetime import datetime, timedelta
 from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from config import get_settings
-from database import Base, engine, SessionLocal
-from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas, portal
-from app.models.models import CategoriaServicio, Servicio, SlotCita
-
-settings = get_settings()
-
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.VERSION,
-    description="RapiJob conecta clientes con técnicos para solicitar servicios.",
+    title="RapiJob",
+    version="2.0.0",
+    description="RapiJob conecta clientes con técnicos profesionales en Junín.",
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(servicios.router)
-app.include_router(ordenes.router)
-app.include_router(metodos_pago.router)
-app.include_router(slots_citas.router)
-app.include_router(portal.router)
+WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
+ASSETS = WEB_DIST / "assets"
 
-FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend-static")
-
-
-@app.on_event("startup")
-def initialize_database():
-    # Crea las tablas definidas por los modelos. Para bases existentes, aplicar
-    # las migraciones documentadas antes de desplegar esta versión.
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        category_names = [
-            "Electricistas", "Plomeros", "Gasfiteros", "Computadoras y laptops",
-            "Celulares", "Instaladores", "Hogar", "Refrigeración",
-            "Pintores", "Carpinteros", "Mecánicos", "Otros",
-            "Software y sistemas", "Redes e internet", "Mantenimiento preventivo",
-        ]
-        categories = {}
-        for name in category_names:
-            category = db.query(CategoriaServicio).filter(
-                CategoriaServicio.nombre_categoria == name
-            ).first()
-            if not category:
-                category = CategoriaServicio(nombre_categoria=name, estado="activa")
-                db.add(category)
-                db.flush()
-            categories[name] = category
-
-        # Precios orientativos en soles peruanos; el técnico confirma el costo final.
-        sample_services = [
-            ("Diagnóstico de PC o laptop", "Evaluación inicial de fallas de hardware o software.", 45, 30, "Computadoras y laptops"),
-            ("Mantenimiento preventivo de PC", "Limpieza interna, revisión de componentes y optimización básica.", 90, 90, "Mantenimiento preventivo"),
-            ("Instalación de Windows", "Instalación y configuración del sistema operativo. Licencia no incluida.", 100, 120, "Software y sistemas"),
-            ("Eliminación de virus y malware", "Revisión y limpieza de amenazas y programas no deseados.", 70, 60, "Software y sistemas"),
-            ("Instalación de SSD o memoria RAM", "Instalación física y comprobación de compatibilidad.", 60, 60, "Computadoras y laptops"),
-            ("Configuración de Wi-Fi y red", "Configuración de router, conexión y solución de problemas de red.", 65, 60, "Redes e internet"),
-            ("Instalación eléctrica básica", "Revisión de tomacorrientes, interruptores e instalaciones domiciliarias.", 60, 60, "Electricistas"),
-            ("Reparación de fuga de agua", "Revisión de fugas y reparación básica de tuberías y griferías.", 45, 60, "Plomeros"),
-            ("Mantenimiento de conexiones de gas", "Revisión preventiva de conexiones y accesorios de gas.", 55, 60, "Gasfiteros"),
-            ("Diagnóstico de celular", "Evaluación inicial de fallas de software o hardware en celulares.", 35, 45, "Celulares"),
-            ("Instalación de equipos y accesorios", "Instalación y configuración de equipos y accesorios del hogar.", 50, 60, "Instaladores"),
-            ("Reparación general del hogar", "Atención de reparaciones menores en el hogar.", 45, 60, "Hogar"),
-            ("Mantenimiento de refrigeradora", "Revisión y mantenimiento básico de equipos de refrigeración.", 80, 90, "Refrigeración"),
-            ("Pintura de ambientes", "Preparación y pintura de paredes en ambientes pequeños.", 70, 120, "Pintores"),
-            ("Reparación de muebles", "Ajustes y reparaciones básicas de puertas y muebles de madera.", 65, 90, "Carpinteros"),
-            ("Diagnóstico mecánico básico", "Revisión inicial de fallas mecánicas comunes.", 60, 60, "Mecánicos"),
-            ("Servicio técnico personalizado", "Evaluación de una necesidad específica y propuesta de atención.", 30, 45, "Otros"),
-        ]
-        for name, description, price, duration, category_name in sample_services:
-            existing_service = db.query(Servicio).filter(Servicio.nombre_servicio == name).first()
-            if not existing_service:
-                db.add(Servicio(
-                    id_categoria=categories[category_name].id_categoria,
-                    nombre_servicio=name,
-                    descripcion=description,
-                    duracion_estimada_minutos=duration,
-                    precio_base=price,
-                    estado="disponible",
-                ))
-
-        if db.query(SlotCita).count() == 0:
-            now = datetime.utcnow()
-            for day_offset in range(1, 8):
-                day = (now + timedelta(days=day_offset)).date()
-                for hour in (9, 11, 14, 16):
-                    start = datetime.combine(day, datetime.min.time()).replace(hour=hour)
-                    db.add(SlotCita(
-                        fecha=start,
-                        hora_inicio=start,
-                        hora_fin=start + timedelta(hours=1),
-                        capacidad_maxima=1,
-                        reservas_actuales=0,
-                        estado="disponible",
-                    ))
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
-
-
-@app.get("/api/config/public")
+@app.get("/config.json")
 def public_config():
-    """Only browser-safe settings. Restrict the Google Maps key by HTTP referrer."""
-    return {"google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", "")}
-
-
-@app.get("/")
-def root():
-    index_file = FRONTEND_DIR / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    return {"mensaje": "RapiJob API", "docs": "/docs"}
-
+    # La anon key de Supabase y la clave de navegador de Maps son públicas por diseño.
+    # La seguridad de datos se aplica con RLS en Supabase; nunca exponer service_role.
+    return JSONResponse({
+        "supabaseUrl": os.getenv("SUPABASE_URL", ""),
+        "supabaseAnonKey": os.getenv("SUPABASE_ANON_KEY", ""),
+        "googleMapsApiKey": os.getenv("GOOGLE_MAPS_API_KEY", ""),
+    })
 
 @app.get("/health")
-def health_check():
-    return {"status": "ok"}
+def health():
+    return {"status": "ok", "app": "RapiJob", "frontend_built": (WEB_DIST / "index.html").exists()}
 
+if ASSETS.exists():
+    app.mount("/assets", StaticFiles(directory=ASSETS), name="assets")
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", settings.PORT)), reload=settings.DEBUG)
+@app.get("/", include_in_schema=False)
+def index():
+    file = WEB_DIST / "index.html"
+    if file.exists():
+        return FileResponse(file)
+    return {"message": "RapiJob web build not found", "hint": "Build the React app from /web."}
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def spa_fallback(full_path: str):
+    candidate = (WEB_DIST / full_path).resolve()
+    if WEB_DIST.resolve() in candidate.parents and candidate.is_file():
+        return FileResponse(candidate)
+    index_file = WEB_DIST / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return {"detail": "Not found"}
