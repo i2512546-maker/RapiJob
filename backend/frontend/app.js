@@ -488,6 +488,7 @@ function init() {
     loadServices();
   });
   $('#refreshOrdersBtn').addEventListener('click', loadOrders);
+  window.setInterval(() => { if (state.token && state.user) loadOrders(); }, 30000);
   loadServices();
   loadProfile();
 }
