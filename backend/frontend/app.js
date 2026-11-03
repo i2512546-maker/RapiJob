@@ -151,7 +151,8 @@ async function loadServices() {
 async function loadBookingOptions() {
   if (!state.token || state.user?.tipo_usuario !== 'cliente') return;
   try {
-    const slots = await apiFetch('/api/admin/slots-citas/');
+    const selectedTechnician = $('#selectedTechnicianId')?.value;
+    const slots = await apiFetch('/api/admin/slots-citas/' + (selectedTechnician ? '?id_tecnico=' + encodeURIComponent(selectedTechnician) : ''));
     $('#slotSelect').innerHTML = '<option value="">Selecciona un horario</option>' +
       slots.map((slot) => {
         const start = parseServerDate(slot.hora_inicio);
