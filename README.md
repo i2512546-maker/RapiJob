@@ -1,104 +1,74 @@
-# RapiJob - Plataforma de Contratación de Servicios Técnicos
+# RapiJob
 
-Base de datos SQL completa para una plataforma de contratación de servicios técnicos.
+Plataforma web para conectar clientes con técnicos de computadoras, laptops, software y redes.
 
-## Descripción
+## Funciones
+- Registro e inicio de sesión con contraseña protegida y token JWT.
+- Roles de cliente y técnico.
+- Catálogo público de servicios y precios referenciales.
+- Precios expresados en soles peruanos (PEN).
+- Solicitud de citas en horarios disponibles.
+- Panel de solicitudes del cliente.
+- Panel del técnico para aceptar y cancelar solicitudes.
+- No se procesan pagos ni se solicitan datos bancarios. El precio publicado es orientativo; el técnico confirma el importe final después de revisar el problema.
 
-**RapiJob** es un sistema integral de gestión para conectar técnicos con clientes que necesitan servicios tecnológicos de forma rápida y eficiente.
+## Tecnología
+- Backend: FastAPI + SQLAlchemy.
+- Base de datos: MySQL 8 (Docker) o SQLite para desarrollo.
+- Frontend: HTML, CSS y JavaScript servido por FastAPI.
+- Autenticación: JWT y contraseñas con bcrypt.
 
-## Características
+## Ejecutar localmente con Docker
+Requiere Docker Desktop y Docker Compose.
 
-- **Gestión de Usuarios**: Clientes y técnicos con perfiles personalizados
-- **Catálogo de Servicios**: Categorías y servicios configurables
-- **Órdenes de Trabajo**: Sistema completo de contratos y seguimiento
-- **Pagos**: Múltiples métodos de pago y gestión de transacciones
-- **Reseñas y Calificaciones**: Sistema de retroalimentación
-- **Disponibilidad**: Gestión de horarios y zonas de servicio
-- **Auditoría**: Trazabilidad completa de operaciones
-
-## Tablas Principales
-
-- `usuarios`: Registro de clientes y técnicos
-- `perfiles_tecnicos`: Información profesional de técnicos
-- `servicios`: Catálogo de servicios disponibles
-- `ordenes_trabajo`: Contratos y solicitudes de servicio
-- `pagos`: Registro de transacciones
-- `resenas_calificaciones`: Sistema de puntuación y comentarios
-- `disponibilidad_tecnicos`: Horarios de trabajo
-- `auditoria_logs`: Trazabilidad de cambios
-
-## Instalación Rápida
-
-### Con Docker (Recomendado)
 ```bash
-docker-compose up -d
+docker compose up --build
 ```
 
-Esto inicia:
-- MySQL en puerto 3306
-- FastAPI en puerto 8000
+Abrir:
+- Web: http://localhost:8000
+- API: http://localhost:8000/docs
+- Estado: http://localhost:8000/health
 
-Acceder a la documentación: http://localhost:8000/docs
+El backend crea las tablas desde los modelos al iniciar y agrega servicios referenciales y horarios iniciales cuando la base está vacía. No importes el antiguo archivo SQL de demostración sobre una base ya existente: su estructura anterior no coincide completamente con los modelos actuales.
 
-### Local
+Para detener:
+```bash
+docker compose down
+```
+
+Los datos de MySQL se conservan en el volumen `mysql_data`. Para reiniciar la base desde cero (esto elimina los datos):
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+## Ejecutar el backend sin Docker
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
-python main.py
+uvicorn main:app --reload
 ```
 
-## Estructura del Proyecto
+Por defecto se usa SQLite en `backend/rapijob.db`. Para MySQL, configura `DATABASE_URL` en el entorno. En producción define una `SECRET_KEY` larga y aleatoria y una base de datos persistente.
 
-```
-rapijob/
-├── database/
-│   └── plataforma_servicios_tecnicos.sql
-├── backend/                    # API FastAPI
-│   ├── app/
-│   │   ├── models/            # SQLAlchemy models
-│   │   ├── schemas/           # Pydantic schemas
-│   │   ├── routes/            # Endpoints
-│   │   └── middleware/        # Auth, RBAC
-│   ├── main.py
-│   ├── config.py
-│   ├── database.py
-│   ├── requirements.txt
-│   └── Dockerfile
-├── docker-compose.yml
-└── README.md
-```
+## API principal
+- `POST /api/auth/registro`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `GET /api/servicios/`
+- `GET /api/servicios/{id}`
+- `GET /api/admin/slots-citas/`
+- `POST /api/ordenes/`
+- `GET /api/ordenes/`
+- `PATCH /api/ordenes/{id}/aceptar`
+- `PATCH /api/ordenes/{id}/cancelar`
 
-## Stack Tecnológico (Beta)
+## Importante sobre precios
+Los importes del catálogo son referencias iniciales para Perú, no cotizaciones garantizadas ni pagos realizados. El técnico debe confirmar el precio final según el diagnóstico, repuestos y complejidad del trabajo.
 
-- **Backend**: FastAPI + Python 3.11
-- **Base de Datos**: MySQL 8.0
-- **ORM**: SQLAlchemy
-- **Validación**: Pydantic
-- **Autenticación**: JWT + bcrypt
-- **Containerización**: Docker
-
-## API Endpoints Base
-
-**Autenticación:**
-- `POST /api/auth/registro` - Registrar
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Perfil actual
-
-**Servicios:**
-- `GET /api/servicios/` - Listar todos
-- `GET /api/servicios/{id}` - Obtener uno
-
-**Órdenes:**
-- `POST /api/ordenes/` - Crear (clientes)
-- `GET /api/ordenes/` - Mis órdenes
-- `PATCH /api/ordenes/{id}/aceptar` - Aceptar (técnicos)
-
-## Versión
-
-v1.0 - Versión inicial completa
-
-## Autor
-
-Desarrollo - 2026
+## Rama de mantenimiento
+Los cambios de corrección se trabajan en `fix/rapijob-full-stack` para poder revisarlos antes de integrarlos en `main`.
