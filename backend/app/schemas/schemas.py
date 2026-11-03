@@ -45,6 +45,7 @@ class SlotCitaResponse(BaseModel):
 
 class OrdenTrabajoCreate(BaseModel):
     id_servicio: int
+    id_tecnico: Optional[int] = None
     id_slot_cita: int
     ubicacion_servicio: str = Field(..., min_length=5, max_length=255)
     descripcion_problema: str = Field(..., min_length=10, max_length=1000)
