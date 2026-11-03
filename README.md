@@ -72,3 +72,23 @@ Los importes del catálogo son referencias iniciales para Perú, no cotizaciones
 
 ## Rama de mantenimiento
 Los cambios de corrección se trabajan en `fix/rapijob-full-stack` para poder revisarlos antes de integrarlos en `main`.
+
+## Portal ampliado y mapa de técnicos
+
+La página incluye categorías de servicios, un directorio con perfiles de demostración y filtros por ciudad, especialidad, disponibilidad y distancia. Los perfiles y reseñas de muestra son ficticios y no representan técnicos registrados.
+
+### Activar Google Maps
+
+1. Crea una clave de navegador en Google Cloud y habilita **Maps JavaScript API** y **Geocoding API**.
+2. Restringe la clave por los dominios de tu sitio (por ejemplo, `rapijob-2.onrender.com`) y por las APIs anteriores.
+3. En Render, abre el servicio `rapijob-api`, entra a **Environment** y agrega `GOOGLE_MAPS_API_KEY` con esa clave.
+4. Guarda los cambios y vuelve a desplegar.
+
+La clave se entrega al navegador porque Google Maps JavaScript la necesita; por eso debe tener restricciones por dominio y API. No uses una clave de servidor sin restricciones en esta variable.
+
+### Alcance actual
+
+- El catálogo y las solicitudes utilizan la API FastAPI existente.
+- El directorio de técnicos, reseñas, ubicaciones y marcadores visibles en el mapa son datos demostrativos.
+- La selección de ubicación y la geolocalización requieren que Google Maps esté configurado y que el usuario otorgue permiso.
+- El sistema todavía no incluye carga persistente de fotografías, verificación administrativa de técnicos, chat/seguimiento en tiempo real ni integración con Supabase. Estas funciones requieren ampliar el backend y configurar servicios externos.
