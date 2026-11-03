@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="RapiJob conecta clientes con técnicos confiables para resolver cualquier necesidad." />
-    <title>RapiJob | Servicios confiables, sin complicaciones</title>
+    <title>RapiJob | Técnicos confiables, soluciones rápidas</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=20261103-referencias1" />
+    <link rel="stylesheet" href="/static/styles.css?v=20261103-portal1" />
   </head>
   <body>
     <div class="ambient ambient-one"></div>
@@ -21,7 +21,7 @@
           <span>Rapi<span>Job</span></span>
         </a>
         <nav class="desktop-nav" aria-label="Navegación principal">
-          <a href="#servicios">Servicios</a>
+          <a href="#categorias">Categorías</a><a href="#tecnicos">Técnicos</a><a href="#mapa">Mapa</a><a href="#servicios">Servicios</a>
           <a href="#servicios-referencia">Precios de referencia</a>
           <a href="#agenda-ejemplo">Agendar cita</a>
           <a href="#como-funciona">Cómo funciona</a>
@@ -64,6 +64,28 @@
           </div>
           <div class="floating-card floating-price"><span class="floating-icon">↗</span><div><small>Desde</small><strong>S/ 45.00</strong></div></div>
           <div class="floating-card floating-check"><span>✓</span><div><strong>Precios claros</strong><small>Importes referenciales en soles</small></div></div>
+        </div>
+      </section>
+
+
+      <section id="categorias" class="portal-section">
+        <div class="container"><div class="portal-heading"><div class="eyebrow">ENCUENTRA LA ESPECIALIDAD QUE NECESITAS</div><h2>Servicios para tu hogar y negocio</h2><p>Elige una categoría y descubre perfiles profesionales en tu zona.</p></div><div id="categoryGrid" class="category-grid"></div></div>
+      </section>
+      <section id="tecnicos" class="portal-section">
+        <div class="container"><div class="portal-heading"><div class="eyebrow">PROFESIONALES CERCA DE TI</div><h2>Técnicos destacados</h2><p>Perfiles de demostración para mostrar cómo podrás comparar experiencia, especialidad, disponibilidad y precios aproximados.</p></div>
+          <div class="tech-toolbar">
+            <label>Ciudad<select id="techCity"><option value="Todas">Todas las zonas</option><option>Huancayo</option><option>El Tambo</option><option>Chilca</option></select></label>
+            <label>Especialidad<select id="techCategory"><option value="">Todas las especialidades</option><option>Electricistas</option><option>Plomeros</option><option>Gasfiteros</option><option>Computadoras</option><option>Celulares</option><option>Instaladores</option><option>Hogar</option><option>Refrigeración</option><option>Pintores</option><option>Carpinteros</option><option>Mecánicos</option><option>Otros</option></select></label>
+            <label>Distancia máxima<select id="techDistance"><option value="5">5 km</option><option value="10">10 km</option><option value="20">20 km</option><option value="30" selected>30 km</option><option value="100">Cualquier distancia</option></select></label>
+            <label class="filter-check"><input id="techAvailability" type="checkbox"> Solo disponibles</label>
+          </div><div id="technicianCards" class="pro-grid"></div>
+        </div>
+      </section>
+      <section id="mapa" class="portal-section">
+        <div class="container"><div class="portal-heading"><div class="eyebrow">UBICACIÓN Y COBERTURA</div><h2>Técnicos cerca de tu ubicación</h2><p>Explora Huancayo, El Tambo y Chilca. Selecciona un punto en el mapa o comparte tu ubicación para estimar distancias.</p></div>
+          <div class="map-layout"><div class="map-panel"><div class="map-search"><label>Buscar dirección<input id="addressSearch" placeholder="Ej. Plaza de la Constitución, Huancayo"></label><button id="searchAddress" type="button" class="button button-primary">Buscar</button></div><div id="rapijobMap" class="map-canvas"><div><strong>Mapa RapiJob</strong><p>El mapa interactivo se activa al configurar Google Maps API.</p></div></div></div>
+            <aside class="map-side"><h3>Selecciona tu zona</h3><label for="mapCity">Ciudad de cobertura</label><select id="mapCity" class="map-city"><option>Huancayo</option><option>El Tambo</option><option>Chilca</option></select><button id="useMyLocation" type="button" class="button button-primary" style="width:100%">Usar mi ubicación</button><p id="locationStatus" class="map-status">También puedes hacer clic sobre el mapa para indicar dónde necesitas el servicio.</p><label for="selectedAddress">Dirección seleccionada</label><input id="selectedAddress" readonly placeholder="Aún no seleccionaste una ubicación"><button id="useMapAddress" type="button" class="button button-outline" style="width:100%">Usar esta dirección en mi solicitud</button><p id="mapStatus" class="map-status">Preparando mapa…</p><div class="map-note">Los técnicos y ubicaciones que aparecen como demostración no representan profesionales registrados ni disponibilidad confirmada.</div></aside>
+          </div>
         </div>
       </section>
 
@@ -171,5 +193,7 @@
     <footer class="footer"><div class="container footer-inner"><a class="brand" href="#"><span class="brand-mark">R</span><span>Rapi<span>Job</span></span></a><p>Conectando personas. Resolviendo necesidades.</p><div class="api-config"><label for="apiBaseInput">API</label><input id="apiBaseInput" type="url" value="http://localhost:8000" placeholder="https://tu-api.onrender.com" /><button id="saveApiBtn" class="button button-small">Guardar</button></div><small>© 2026 RapiJob. Precios referenciales en soles peruanos (PEN).</small></div></footer>
     <div id="toast" class="toast" role="alert"></div>
     <script src="/static/app.js?v=20261103-loginfix2"></script>
+    <link rel="stylesheet" href="/static/portal.css?v=20261103-portal1" />
+    <script src="/static/portal.js?v=20261103-portal1" defer></script>
   </body>
 </html>
