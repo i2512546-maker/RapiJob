@@ -47,26 +47,43 @@ function escapeHtml(value) {
   }[character]));
 }
 
+function friendlyApiError(payload, raw, status) {
+  const detail = payload && typeof payload === 'object' ? payload.detail : null;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => typeof item === 'string' ? item : (item && typeof item.msg === 'string' ? item.msg : '')).filter(Boolean);
+    if (messages.length) return messages.join('. ');
+  }
+  if (detail && typeof detail === 'object') {
+    const message = detail.message || detail.msg || detail.error;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  const message = payload && typeof payload === 'object' ? (payload.message || payload.error) : null;
+  if (typeof message === 'string' && message.trim()) return message;
+  if (status === 401) return 'Correo o contraseña incorrectos.';
+  if (status === 403) return 'No tienes permiso para realizar esta acción.';
+  if (status === 404) return 'No encontramos el recurso solicitado.';
+  if (status >= 500) return 'El servicio no está disponible en este momento. Inténtalo más tarde.';
+  return 'No se pudo completar la solicitud. Revisa los datos e inténtalo nuevamente.';
+}
+
 async function apiFetch(path, options = {}) {
   const headers = new Headers(options.headers || {});
+  headers.set('Accept', 'application/json');
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json');
-  if (state.token) headers.set('Authorization', \`Bearer \${state.token}\`);
+  if (state.token) headers.set('Authorization', `Bearer ${state.token}`);
   let response;
   try {
-    response = await fetch(\`\${getApiBase()}\${path}\`, { ...options, headers });
+    response = await fetch(`${getApiBase()}${path}`, { ...options, headers });
   } catch {
     throw new Error('No se pudo conectar con RapiJob. Comprueba tu conexión o la dirección de la API.');
   }
   const raw = await response.text();
-  let payload = raw;
-  try { payload = raw ? JSON.parse(raw) : null; } catch { /* respuesta no JSON */ }
-  if (!response.ok) {
-    const detail = payload?.detail;
-    throw new Error(Array.isArray(detail) ? detail.map((item) => item.msg).join(', ') : detail || payload?.message || 'No se pudo completar la solicitud.');
-  }
+  let payload = null;
+  try { payload = raw ? JSON.parse(raw) : null; } catch { payload = null; }
+  if (!response.ok) throw new Error(friendlyApiError(payload, raw, response.status));
   return payload;
 }
-
 function renderServiceOptions() {
   const select = $('#serviceSelect');
   if (!select) return;
@@ -321,11 +338,12 @@ function logout(show = true) {
   state.user = null;
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   localStorage.removeItem(USER_STORAGE_KEY);
+  $('#loginForm')?.reset();
+  $('#registerForm')?.reset();
+  showMessage('', 'info');
   updateAuthUI();
-  if (show) {
-    showMessage('Has cerrado sesión correctamente.', 'info');
-    showToast('Sesión cerrada.');
-  }
+  if (show) showToast('Sesión cerrada correctamente.');
+  document.querySelector('#acceso')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function initTabs() {
