@@ -34,11 +34,33 @@ function showMessage(message, type = 'info') {
   element.className = \`message \${type}\`;
 }
 
-function showToast(message) {
+function showToast(message, type = 'success') {
   const toast = $('#toast');
-  toast.textContent = message;
-  toast.classList.add('visible');
-  window.setTimeout(() => toast.classList.remove('visible'), 3200);
+  let cleanMessage = message;
+
+  // Nunca mostrar objetos de configuración/traducción como texto crudo.
+  if (cleanMessage && typeof cleanMessage === 'object') {
+    cleanMessage = cleanMessage.message || cleanMessage.detail || cleanMessage.text || '';
+  }
+  if (typeof cleanMessage === 'string' && cleanMessage.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(cleanMessage);
+      cleanMessage = parsed.message || parsed.detail || parsed.text || '';
+    } catch {
+      // Conserva el texto si no es JSON válido.
+    }
+  }
+  if (typeof cleanMessage !== 'string' || !cleanMessage.trim()) {
+    cleanMessage = 'La operación se realizó correctamente.';
+  }
+
+  toast.textContent = cleanMessage;
+  toast.classList.remove('toast-success', 'toast-error', 'toast-info');
+  toast.classList.add(`toast-${type}`, 'visible');
+  window.clearTimeout(toast.hideTimer);
+  toast.hideTimer = window.setTimeout(() => {
+    toast.classList.remove('visible');
+  }, 3600);
 }
 
 function escapeHtml(value) {
@@ -290,7 +312,7 @@ async function handleLogin(event) {
     if (!state.user) throw new Error('No se pudo cargar tu perfil. Intenta nuevamente.');
     updateAuthUI();
     showMessage('Sesión iniciada correctamente.', 'success');
-    showToast('Bienvenido a RapiJob.');
+    showToast('¡Bienvenido a RapiJob! Nos alegra tenerte aquí.', 'success');
     await loadServices();
   } catch (error) {
     showMessage(error.message, 'error');
@@ -324,7 +346,7 @@ async function handleRegister(event) {
     await loadProfile();
     updateAuthUI();
     showMessage('Tu cuenta fue creada correctamente. Ya iniciaste sesión.', 'success');
-    showToast('¡Bienvenido a RapiJob!');
+    showToast('¡Bienvenido a RapiJob! Nos alegra tenerte aquí.', 'success');
     await loadServices();
   } catch (error) {
     showMessage(error.message, 'error');
@@ -342,7 +364,7 @@ function logout(show = true) {
   $('#registerForm')?.reset();
   showMessage('', 'info');
   updateAuthUI();
-  if (show) showToast('Sesión cerrada correctamente.');
+  if (show) showToast('Has cerrado sesión correctamente. ¡Hasta pronto!', 'info');
   document.querySelector('#acceso')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
