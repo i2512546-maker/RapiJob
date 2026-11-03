@@ -268,13 +268,37 @@ async function handleCreateSlot(event) {
 
 function updateAuthUI() {
   const loggedIn = Boolean(state.token && state.user);
-  $('#logoutBtn').classList.toggle('hidden', !loggedIn);
-  $('#userGreeting').classList.toggle('hidden', !loggedIn);
-  $('#userGreeting').textContent = loggedIn ? \`Hola, \${state.user.nombre}\` : '';
-  $('.nav-cta').textContent = loggedIn ? 'Solicitar servicio ↗' : 'Comenzar ↗';
-  $('#contratar').classList.toggle('hidden', !loggedIn || state.user.tipo_usuario !== 'cliente');
-  $('#technicianPanel').classList.toggle('hidden', !loggedIn || state.user.tipo_usuario !== 'tecnico');
-  $('#clientOrders').classList.toggle('hidden', !loggedIn || state.user.tipo_usuario !== 'cliente');
+  const logoutButton = $('#logoutBtn');
+  const greeting = $('#userGreeting');
+  const navLogin = $('.nav-login');
+  const bookingSection = $('#contratar');
+  const technicianPanel = $('#technicianPanel');
+  const clientOrders = $('#clientOrders');
+
+  if (logoutButton) logoutButton.classList.toggle('hidden', !loggedIn);
+  if (greeting) {
+    greeting.classList.toggle('hidden', !loggedIn);
+    greeting.textContent = loggedIn ? `Hola, ${state.user.nombre}` : '';
+  }
+
+  // El HTML actual utiliza .nav-login; .nav-cta no existe.
+  if (navLogin) {
+    navLogin.href = loggedIn ? '#contratar' : '#acceso';
+    navLogin.innerHTML = loggedIn
+      ? 'Solicitar servicio <span>→</span>'
+      : 'Iniciar sesión <span>→</span>';
+  }
+
+  if (bookingSection) {
+    bookingSection.classList.toggle('hidden', !loggedIn || state.user.tipo_usuario !== 'cliente');
+  }
+  if (technicianPanel) {
+    technicianPanel.classList.toggle('hidden', !loggedIn || state.user.tipo_usuario !== 'tecnico');
+  }
+  if (clientOrders) {
+    clientOrders.classList.toggle('hidden', !loggedIn || state.user.tipo_usuario !== 'cliente');
+  }
+
   if (loggedIn && state.user.tipo_usuario === 'cliente') loadBookingOptions();
   if (loggedIn) loadOrders();
 }
