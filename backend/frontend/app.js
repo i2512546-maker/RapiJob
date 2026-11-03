@@ -227,6 +227,12 @@ async function loadOrders() {
 async function handleCreateOrder(event) {
   event.preventDefault();
   const button = event.submitter;
+  const photoFiles = Array.from($('#orderPhotos')?.files || []);
+  if (photoFiles.length > 5 || photoFiles.some(file => file.size > 4 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) {
+    $('#orderMessage').textContent = 'Puedes adjuntar hasta 5 imágenes JPG, PNG o WEBP de máximo 4 MB cada una.';
+    $('#orderMessage').className = 'message error';
+    return;
+  }
   button.disabled = true;
   try {
     const data = await apiFetch('/api/ordenes/', {
@@ -242,7 +248,6 @@ async function handleCreateOrder(event) {
         notas_adicionales: $('#notas').value.trim() || null,
       }),
     });
-    const photoFiles = Array.from($('#orderPhotos')?.files || []);
     for (const photo of photoFiles) {
       const upload = new FormData();
       upload.append('archivo', photo);
