@@ -84,14 +84,19 @@ def crear_orden(orden: OrdenTrabajoCreate, db: Session = Depends(get_db), curren
 @router.get("/", response_model=list[OrdenTrabajoResponse])
 def obtener_ordenes(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     if current_user.tipo_usuario == "cliente":
-        return db.query(OrdenTrabajo).filter(
+        orders = db.query(OrdenTrabajo).filter(
             OrdenTrabajo.id_cliente == current_user.user_id
         ).order_by(OrdenTrabajo.fecha_solicitud.desc()).all()
-
-    return db.query(OrdenTrabajo).filter(
-        (OrdenTrabajo.id_tecnico == current_user.user_id) |
-        ((OrdenTrabajo.id_tecnico.is_(None)) & (OrdenTrabajo.estado_orden == "pendiente"))
-    ).order_by(OrdenTrabajo.fecha_solicitud.desc()).all()
+    else:
+        orders = db.query(OrdenTrabajo).filter(
+            (OrdenTrabajo.id_tecnico == current_user.user_id) |
+            ((OrdenTrabajo.id_tecnico.is_(None)) & (OrdenTrabajo.estado_orden == "pendiente"))
+        ).order_by(OrdenTrabajo.fecha_solicitud.desc()).all()
+    for item in orders:
+        item.tiene_resena = bool(db.query(ResenaCalificacion.id_resena).filter(
+            ResenaCalificacion.id_orden == item.id_orden
+        ).first())
+    return orders
 
 
 @router.get("/{orden_id}", response_model=OrdenTrabajoResponse)
