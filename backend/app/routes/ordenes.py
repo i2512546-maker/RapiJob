@@ -179,8 +179,8 @@ def subir_adjunto(orden_id: int, archivo: UploadFile = File(...),
     if not content or len(content) > 4 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Cada imagen debe pesar como máximo 4 MB.")
     valid_image = (
-        (archivo.content_type == "image/jpeg" and content.startswith(b"\\xff\\xd8\\xff")) or
-        (archivo.content_type == "image/png" and content.startswith(b"\\x89PNG\\r\\n\\x1a\\n")) or
+        (archivo.content_type == "image/jpeg" and content.startswith(b"\xff\xd8\xff")) or
+        (archivo.content_type == "image/png" and content.startswith(b"\x89PNG\r\n\x1a\n")) or
         (archivo.content_type == "image/webp" and content.startswith(b"RIFF") and content[8:12] == b"WEBP")
     )
     if not valid_image:
