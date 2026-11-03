@@ -46,6 +46,8 @@ class SlotCitaResponse(BaseModel):
 class OrdenTrabajoCreate(BaseModel):
     id_servicio: int
     id_tecnico: Optional[int] = None
+    latitud: Optional[float] = Field(None, ge=-90, le=90)
+    longitud: Optional[float] = Field(None, ge=-180, le=180)
     id_slot_cita: int
     ubicacion_servicio: str = Field(..., min_length=5, max_length=255)
     descripcion_problema: str = Field(..., min_length=10, max_length=1000)
