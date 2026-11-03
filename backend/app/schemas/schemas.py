@@ -70,6 +70,7 @@ class OrdenTrabajoResponse(BaseModel):
     precio_final: Optional[Decimal] = None
     estado_orden: str
     razon_cancelacion: Optional[str] = None
+    tiene_resena: bool = False
 
     class Config:
         from_attributes = True
