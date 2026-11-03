@@ -105,6 +105,12 @@ def initialize_database():
         db.close()
 
 
+@app.get("/api/config/public")
+def public_config():
+    """Only browser-safe settings. Restrict the Google Maps key by HTTP referrer."""
+    return {"google_maps_api_key": os.getenv("GOOGLE_MAPS_API_KEY", "")}
+
+
 @app.get("/")
 def root():
     index_file = FRONTEND_DIR / "index.html"
