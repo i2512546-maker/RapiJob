@@ -44,7 +44,7 @@
       if(city!=="Todas" && t.city!==city)return false;
       if(specialty && t.specialty!==specialty)return false;
       if(available && !t.available)return false;
-      if(clientLocation && distanceKm(clientLocation,t)<=maxDistance===false)return false;
+      if(clientLocation && distanceKm(clientLocation,t)>maxDistance)return false;
       return true;
     }).map(t=>({...t,distance:clientLocation?distanceKm(clientLocation,t):null}));
   }
