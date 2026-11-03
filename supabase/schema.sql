@@ -65,7 +65,7 @@ alter table public.reviews enable row level security;
 create policy "profiles own or admin read" on public.profiles for select using(id=auth.uid() or public.is_admin());
 create policy "profiles own client insert" on public.profiles for insert with check(id=auth.uid() and role='client');
 create policy "profiles own safe update" on public.profiles for update using(id=auth.uid() and role in ('client','technician')) with check(id=auth.uid() and role in ('client','technician'));
-create or replace function public.protect_profile_role() returns trigger language plpgsql security definer set search_path=public as $ begin if old.role is distinct from new.role and not public.is_admin() then raise exception 'Solo administración puede cambiar roles.'; end if; return new; end $;
+create or replace function public.protect_profile_role() returns trigger language plpgsql security definer set search_path=public as $ begin if old.role is distinct from new.role and auth.uid() is not null and not public.is_admin() then raise exception 'Solo administración puede cambiar roles.'; end if; return new; end $;
 drop trigger if exists protect_profile_role_trigger on public.profiles;
 create trigger protect_profile_role_trigger before update on public.profiles for each row execute procedure public.protect_profile_role();
 create policy "admin manage profiles" on public.profiles for all using(public.is_admin()) with check(public.is_admin());
@@ -74,10 +74,10 @@ create policy "admin manage categories" on public.categories for all using(publi
 create policy "approved technician directory" on public.technician_profiles for select using(approved=true or user_id=auth.uid() or public.is_admin());
 create policy "admin manage technician profiles" on public.technician_profiles for all using(public.is_admin()) with check(public.is_admin());
 create policy "technician manage own availability" on public.technician_profiles for update using(user_id=auth.uid() and exists(select 1 from public.profiles where id=auth.uid() and role='technician')) with check(user_id=auth.uid() and exists(select 1 from public.profiles where id=auth.uid() and role='technician'));
-create or replace function public.protect_technician_approval() returns trigger language plpgsql security definer set search_path=public as $ begin if old.approved is distinct from new.approved and not public.is_admin() then raise exception 'Solo administración puede aprobar técnicos.'; end if; return new; end $;
+create or replace function public.protect_technician_approval() returns trigger language plpgsql security definer set search_path=public as $ begin if old.approved is distinct from new.approved and auth.uid() is not null and not public.is_admin() then raise exception 'Solo administración puede aprobar técnicos.'; end if; return new; end $;
 drop trigger if exists protect_technician_approval_trigger on public.technician_profiles;
 create trigger protect_technician_approval_trigger before update on public.technician_profiles for each row execute procedure public.protect_technician_approval();
-create policy "clients create own requests" on public.service_requests for insert with check(client_id=auth.uid() and exists(select 1 from public.profiles where id=auth.uid() and role='client'));
+create policy "clients create own requests" on public.service_requests for insert with check(client_id=auth.uid() and exists(select 1 from public.profiles where id=auth.uid() and role='client') and exists(select 1 from public.technician_profiles t where t.user_id=technician_id and t.approved=true and t.available=true));
 create policy "participants or admin read requests" on public.service_requests for select using(client_id=auth.uid() or technician_id=auth.uid() or public.is_admin());
 create policy "assigned technician or admin update requests" on public.service_requests for update using(technician_id=auth.uid() or public.is_admin()) with check(technician_id=auth.uid() or public.is_admin());
 create policy "client cancel own pending request" on public.service_requests for update using(client_id=auth.uid() and status='pending') with check(client_id=auth.uid() and status='cancelled');
@@ -95,3 +95,10 @@ create policy "upload own request folder" on storage.objects for insert to authe
 create policy "read own request folder" on storage.objects for select to authenticated using(bucket_id='request-photos' and (storage.foldername(name))[1]=auth.uid()::text);
 -- Después de crear tu cuenta, ejecuta esta instrucción con tu correo para convertirla en administradora:
 -- update public.profiles set role='admin' where email='TU_CORREO@EJEMPLO.COM';
+
+
+-- Habilita actualizaciones en vivo de solicitudes para los paneles conectados.
+do $$ begin
+  alter publication supabase_realtime add table public.service_requests;
+exception when duplicate_object then null;
+end $$;
