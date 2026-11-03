@@ -13,11 +13,14 @@ const apiBaseInput = $('#apiBaseInput');
 const servicesList = $('#servicesList');
 
 function getApiBase() {
-  // Por defecto, frontend y API se sirven desde el mismo dominio.
-  return (localStorage.getItem(API_STORAGE_KEY) || window.location.origin || 'http://localhost:8000')
-    .trim().replace(/\/$/, '');
+  // En producción, el frontend y la API se sirven desde el mismo dominio.
+  // Ignora una URL localhost guardada durante el desarrollo local.
+  const saved = (localStorage.getItem(API_STORAGE_KEY) || '').trim().replace(/\/$/, '');
+  const isLocalHost = /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(saved);
+  const isProduction = !['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (saved && !(isProduction && isLocalHost)) return saved;
+  return window.location.origin || 'http://localhost:8000';
 }
-
 function parseServerDate(value) {
   if (!value) return null;
   // FastAPI serializa fechas sin zona cuando SQLAlchemy almacena UTC naive.
@@ -323,8 +326,9 @@ async function loadProfile() {
 
 async function handleLogin(event) {
   event.preventDefault();
-  const button = event.submitter;
-  button.disabled = true;
+  const button = event.submitter || $('#loginForm button[type="submit"]');
+  if (button) button.disabled = true;
+  showMessage('Verificando tus datos...', 'info');
   try {
     const data = await apiFetch('/api/auth/login', {
       method: 'POST',
@@ -339,9 +343,9 @@ async function handleLogin(event) {
     showToast('¡Bienvenido a RapiJob! Nos alegra tenerte aquí.', 'success');
     await loadServices();
   } catch (error) {
-    showMessage(error.message, 'error');
+    showMessage(error.message || 'No se pudo iniciar sesión. Inténtalo nuevamente.', 'error');
   } finally {
-    button.disabled = false;
+    if (button) button.disabled = false;
   }
 }
 
