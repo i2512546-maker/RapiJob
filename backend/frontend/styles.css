@@ -91,3 +91,23 @@ button:disabled, .button:disabled {
   #toast { right: 16px; bottom: 16px; font-size: 13px; }
   .user-greeting { font-size: 11px; padding: 7px 9px; }
 }
+
+/* Catálogo orientativo y demostración visual del agendamiento */
+.reference-intro{max-width:760px;color:var(--muted);font-size:14px;margin:-12px 0 25px}
+.reference-grid .service-card{min-height:220px}
+.demo-booking-section{padding-top:25px}
+.demo-booking-card{display:grid;grid-template-columns:1.35fr .8fr;gap:28px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px;box-shadow:var(--shadow)}
+.demo-booking-copy h3,.demo-summary h3{font-family:"Space Grotesk",sans-serif;font-size:20px}
+.demo-booking-copy>p{color:var(--muted);font-size:13px;max-width:620px}
+.demo-booking-copy label{display:block;font-size:12px;font-weight:700;margin:18px 0 7px}
+.demo-booking-copy input{width:100%;max-width:280px;padding:12px;border:1px solid var(--line);border-radius:8px;font:inherit}
+.demo-time-options{display:flex;flex-wrap:wrap;gap:9px;margin:10px 0 20px}
+.demo-time{padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:#f8fafc;color:var(--ink);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.demo-time:hover,.demo-time.selected{background:#e8f0fb;border-color:#1769d2;color:#1769d2}
+.demo-booking-copy .button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.demo-summary{padding:24px;background:#f3f6fb;border-radius:12px}
+.demo-summary-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:11px;background:#fff0df;color:#d97706;font-size:24px;margin-bottom:18px}
+.demo-summary ol{padding-left:20px;color:var(--muted);font-size:13px}
+.demo-summary li{padding:5px 0}
+.demo-summary small{display:block;color:#64748b;font-size:11px;line-height:1.5;margin-top:18px}
+@media(max-width:700px){.demo-booking-card{grid-template-columns:1fr;padding:20px}.reference-grid{grid-template-columns:1fr}}
