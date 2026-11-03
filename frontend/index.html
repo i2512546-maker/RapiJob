@@ -87,6 +87,17 @@
 
       <section id="technicianPanel" class="section container hidden">
         <div class="section-heading"><div><div class="eyebrow">PANEL DEL TÉCNICO</div><h2>Solicitudes <em>disponibles.</em></h2></div><button id="refreshOrdersBtn" class="button button-outline">Actualizar ↻</button></div>
+        <form id="slotForm" class="booking-card">
+          <h3>Publicar horarios disponibles</h3>
+          <div class="two-col">
+            <label>Inicio de atención<input id="slotStart" type="datetime-local" required /></label>
+            <label>Fin de atención<input id="slotEnd" type="datetime-local" required /></label>
+          </div>
+          <label>Capacidad de citas<input id="slotCapacity" type="number" min="1" max="20" value="1" required /></label>
+          <button type="submit" class="button button-primary">Publicar horario</button>
+          <div id="slotMessage" class="message" role="status"></div>
+        </form>
+        <h3>Solicitudes disponibles</h3>
         <div id="ordersList" class="orders-list"></div>
       </section>
 
