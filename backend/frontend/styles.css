@@ -55,3 +55,39 @@ button:disabled, .button:disabled {
 @media (max-width: 560px) {
   .nav-login { padding: 9px 12px; font-size: 12px; }
 }
+
+
+/* Notificaciones y saludo: tipografía clara y estilo RapiJob */
+#toast {
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: .1px;
+  padding: 15px 20px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-left: 4px solid #1769d2;
+  border-radius: 12px;
+  background: #0b1f3a;
+  color: #fff;
+  box-shadow: 0 14px 38px rgba(11,31,58,.22);
+  max-width: min(420px, calc(100vw - 32px));
+}
+#toast.toast-success { border-left-color: #f28c28; }
+#toast.toast-error { border-left-color: #ef6464; }
+#toast.toast-info { border-left-color: #1769d2; }
+.user-greeting {
+  color: #0b1f3a;
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .1px;
+  background: #e8f0fb;
+  border: 1px solid #d6e4f7;
+  border-radius: 999px;
+  padding: 8px 13px;
+}
+@media (max-width: 560px) {
+  #toast { right: 16px; bottom: 16px; font-size: 13px; }
+  .user-greeting { font-size: 11px; padding: 7px 9px; }
+}
