@@ -38,7 +38,7 @@
         <div class="hero-copy">
           <div class="eyebrow"><span class="pulse-dot"></span> La forma inteligente de resolverlo</div>
           <h1>Tu próximo trabajo, <em>a un clic.</em></h1>
-          <p class="hero-text">Encuentra profesionales verificados para cada tarea. Rápido, transparente y siempre cerca de ti.</p>
+          <p class="hero-text">Encuentra técnicos para computadoras, laptops, software y redes. Consulta precios referenciales y solicita una cita en línea.</p>
           <div class="hero-actions">
             <a href="#servicios" class="button button-primary button-large">Explorar servicios <span>→</span></a>
             <a href="#como-funciona" class="text-link">Descubre cómo funciona <span>↓</span></a>
@@ -60,16 +60,9 @@
             <div class="card-divider"></div>
             <div class="appointment"><span class="calendar-icon">◷</span><div><small>Próxima disponibilidad</small><strong>Hoy, 14:30 – 16:00</strong></div></div>
           </div>
-          <div class="floating-card floating-price"><span class="floating-icon">↗</span><div><small>Desde</small><strong>$25.00</strong></div></div>
-          <div class="floating-card floating-check"><span>✓</span><div><strong>100% seguro</strong><small>Profesionales verificados</small></div></div>
+          <div class="floating-card floating-price"><span class="floating-icon">↗</span><div><small>Desde</small><strong>S/ 45.00</strong></div></div>
+          <div class="floating-card floating-check"><span>✓</span><div><strong>Precios claros</strong><small>Importes referenciales en soles</small></div></div>
         </div>
-      </section>
-
-      <section class="stats-bar container">
-        <div><strong>4.9<span>/5</span></strong><small>Valoración media</small></div>
-        <div><strong>2,500<span>+</span></strong><small>Profesionales activos</small></div>
-        <div><strong>15k<span>+</span></strong><small>Servicios completados</small></div>
-        <div><strong>24<span>h</span></strong><small>Soporte disponible</small></div>
       </section>
 
       <section id="servicios" class="section container">
@@ -84,7 +77,7 @@
         <div class="section-heading"><div><div class="eyebrow">CONTRATAR UN TÉCNICO</div><h2>Solicita ayuda <em>en minutos.</em></h2></div></div>
         <form id="orderForm" class="booking-card">
           <div class="two-col"><label>Servicio<select id="serviceSelect" required><option value="">Selecciona un servicio</option></select></label><label>Horario disponible<select id="slotSelect" required><option value="">Cargando horarios...</option></select></label></div>
-          <div class="two-col"><label>Método de pago<select id="paymentSelect" required><option value="">Cargando métodos...</option></select></label><label>Ubicación<input id="ubicacion" required placeholder="Dirección donde se realizará el servicio" /></label></div>
+          <div class="two-col"><label>Ubicación<input id="ubicacion" required minlength="5" placeholder="Dirección donde se realizará el servicio" /></label><label>Precio estimado<small>Se muestra como referencia. No se realiza ningún cobro en la plataforma.</small></label></div>
           <label>¿Qué necesitas?<textarea id="descripcion" required minlength="10" placeholder="Describe el trabajo que necesitas..."></textarea></label>
           <label>Notas adicionales<textarea id="notas" placeholder="Instrucciones opcionales"></textarea></label>
           <button type="submit" class="button button-primary">Contratar técnico <span>→</span></button>
@@ -101,9 +94,9 @@
         <div class="container">
           <div class="section-heading centered"><div><div class="eyebrow">SIMPLE Y TRANSPARENTE</div><h2>Así de <em>fácil</em> funciona.</h2></div></div>
           <div class="steps-grid">
-            <article class="step"><span class="step-number">01</span><div class="step-icon">⌕</div><h3>Busca lo que necesitas</h3><p>Explora servicios y encuentra al profesional ideal para tu proyecto.</p></article>
-            <article class="step"><span class="step-number">02</span><div class="step-icon">◈</div><h3>Elige con confianza</h3><p>Compara perfiles, precios y reseñas de clientes reales.</p></article>
-            <article class="step"><span class="step-number">03</span><div class="step-icon">✓</div><h3>Disfruta el resultado</h3><p>Coordina el servicio y deja que un experto se encargue.</p></article>
+            <article class="step"><span class="step-number">01</span><div class="step-icon">⌕</div><h3>Busca lo que necesitas</h3><p>Explora servicios técnicos y consulta precios referenciales en soles peruanos.</p></article>
+            <article class="step"><span class="step-number">02</span><div class="step-icon">◈</div><h3>Elige con confianza</h3><p>Revisa el precio estimado y elige un horario disponible.</p></article>
+            <article class="step"><span class="step-number">03</span><div class="step-icon">✓</div><h3>Disfruta el resultado</h3><p>Envía tu solicitud. El técnico confirmará el diagnóstico y el precio final.</p></article>
           </div>
         </div>
       </section>
@@ -128,7 +121,7 @@
       </section>
     </main>
 
-    <footer class="footer"><div class="container footer-inner"><a class="brand" href="#"><span class="brand-mark">R</span><span>Rapi<span>Job</span></span></a><p>Conectando personas. Resolviendo necesidades.</p><div class="api-config"><label for="apiBaseInput">API</label><input id="apiBaseInput" type="url" value="http://localhost:8000" placeholder="https://tu-api.onrender.com" /><button id="saveApiBtn" class="button button-small">Guardar</button></div><small>© 2024 RapiJob. Todos los derechos reservados.</small></div></footer>
+    <footer class="footer"><div class="container footer-inner"><a class="brand" href="#"><span class="brand-mark">R</span><span>Rapi<span>Job</span></span></a><p>Conectando personas. Resolviendo necesidades.</p><div class="api-config"><label for="apiBaseInput">API</label><input id="apiBaseInput" type="url" value="http://localhost:8000" placeholder="https://tu-api.onrender.com" /><button id="saveApiBtn" class="button button-small">Guardar</button></div><small>© 2026 RapiJob. Precios referenciales en soles peruanos (PEN).</small></div></footer>
     <div id="toast" class="toast" role="alert"></div>
     <script src="/static/app.js"></script>
   </body>
