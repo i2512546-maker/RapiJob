@@ -1,0 +1,24 @@
+name: RapiJob build
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  web-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package.json
+      - name: Install frontend dependencies
+        working-directory: web
+        run: npm install
+      - name: Type-check and build React app
+        working-directory: web
+        run: npm run build
+      - name: Check Python syntax
+        run: python -m compileall -q backend
