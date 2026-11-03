@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 from decimal import Decimal
 from typing import Optional
 
@@ -103,3 +104,27 @@ def guardar_perfil_tecnico(data: PerfilPublicoInput, current_user=Depends(get_cu
     db.refresh(profile)
     user = db.query(Usuario).filter_by(id_usuario=current_user.user_id).first()
     return serialize_profile(user, profile)
+
+
+@router.get("/admin/pendientes")
+def perfiles_pendientes(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    admin_email = os.getenv("RAPIJOB_ADMIN_EMAIL", "").strip().lower()
+    if not admin_email or current_user.email.strip().lower() != admin_email:
+        raise HTTPException(status_code=403, detail="Acceso reservado al administrador configurado.")
+    query = db.query(Usuario, PerfilTecnicoPublico).join(
+        PerfilTecnicoPublico, PerfilTecnicoPublico.id_usuario == Usuario.id_usuario
+    ).filter(PerfilTecnicoPublico.aprobado.is_(False))
+    return [serialize_profile(user, profile) for user, profile in query.all()]
+
+
+@router.patch("/{tecnico_id}/aprobar")
+def aprobar_tecnico(tecnico_id: int, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    admin_email = os.getenv("RAPIJOB_ADMIN_EMAIL", "").strip().lower()
+    if not admin_email or current_user.email.strip().lower() != admin_email:
+        raise HTTPException(status_code=403, detail="Acceso reservado al administrador configurado.")
+    profile = db.query(PerfilTecnicoPublico).filter_by(id_usuario=tecnico_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Perfil técnico no encontrado.")
+    profile.aprobado = True
+    db.commit()
+    return {"message": "Perfil aprobado y publicado.", "id_usuario": tecnico_id}
