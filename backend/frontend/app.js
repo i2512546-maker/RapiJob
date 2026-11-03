@@ -214,12 +214,20 @@ async function handleCreateOrder(event) {
       body: JSON.stringify({
         id_servicio: Number($('#serviceSelect').value),
         id_tecnico: $('#selectedTechnicianId')?.value ? Number($('#selectedTechnicianId').value) : null,
+        latitud: $('#selectedLatitude')?.value ? Number($('#selectedLatitude').value) : null,
+        longitud: $('#selectedLongitude')?.value ? Number($('#selectedLongitude').value) : null,
         id_slot_cita: Number($('#slotSelect').value),
         ubicacion_servicio: $('#ubicacion').value.trim(),
         descripcion_problema: $('#descripcion').value.trim(),
         notas_adicionales: $('#notas').value.trim() || null,
       }),
     });
+    const photoFiles = Array.from($('#orderPhotos')?.files || []);
+    for (const photo of photoFiles) {
+      const upload = new FormData();
+      upload.append('archivo', photo);
+      await apiFetch(`/api/ordenes/${data.id_orden}/adjuntos`, { method: 'POST', body: upload });
+    }
     $('#orderForm').reset();
     $('#orderMessage').textContent = \`Solicitud #\${data.id_orden} registrada. Precio referencial: \${money(data.precio_final)}. No se realizó ningún cobro.\`;
     $('#orderMessage').className = 'message success';
