@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css?v=20261103-loginfix2" />
+    <link rel="stylesheet" href="/static/styles.css?v=20261103-referencias1" />
   </head>
   <body>
     <div class="ambient ambient-one"></div>
@@ -71,6 +71,40 @@
           <button id="refreshServicesBtn" class="button button-outline">Actualizar <span>↻</span></button>
         </div>
         <div id="servicesList" class="service-grid"><div class="loading-state"><span class="spinner"></span>Cargando servicios...</div></div>
+      </section>
+
+      <section id="servicios-referencia" class="section container reference-section">
+        <div class="section-heading">
+          <div><div class="eyebrow">EJEMPLOS ORIENTATIVOS</div><h2>Servicios de <em>referencia.</em></h2></div>
+        </div>
+        <p class="reference-intro">Estos son ejemplos de trabajos que puedes solicitar. Los precios están expresados en soles y pueden variar según el diagnóstico, la marca del equipo y los repuestos necesarios.</p>
+        <div class="service-grid reference-grid">
+          <article class="service-card"><div class="service-icon">⌁</div><h3>Diagnóstico de PC o laptop</h3><p>Revisión inicial para identificar fallas de hardware o software.</p><div class="service-meta"><strong>Desde S/ 25</strong><span>30–45 min</span></div><small class="price-note">Precio referencial.</small></article>
+          <article class="service-card"><div class="service-icon">⚙</div><h3>Mantenimiento preventivo</h3><p>Limpieza interna, revisión de componentes y optimización básica.</p><div class="service-meta"><strong>Desde S/ 50</strong><span>1–2 horas</span></div><small class="price-note">Precio referencial.</small></article>
+          <article class="service-card"><div class="service-icon">▣</div><h3>Instalación de programas</h3><p>Instalación y configuración de programas y herramientas de trabajo.</p><div class="service-meta"><strong>Desde S/ 30</strong><span>30–60 min</span></div><small class="price-note">Precio referencial.</small></article>
+          <article class="service-card"><div class="service-icon">⌘</div><h3>Formateo e instalación de sistema</h3><p>Reinstalación del sistema operativo y configuración inicial.</p><div class="service-meta"><strong>Desde S/ 80</strong><span>2–3 horas</span></div><small class="price-note">Precio referencial; respaldo no incluido.</small></article>
+          <article class="service-card"><div class="service-icon">⌑</div><h3>Reparación de laptop o PC</h3><p>Evaluación y solución de problemas de funcionamiento.</p><div class="service-meta"><strong>Desde S/ 60</strong><span>Según diagnóstico</span></div><small class="price-note">Repuestos pueden tener costo adicional.</small></article>
+          <article class="service-card"><div class="service-icon">⌁</div><h3>Configuración de internet y redes</h3><p>Ayuda con conexión Wi-Fi, router y configuración de red.</p><div class="service-meta"><strong>Desde S/ 40</strong><span>45–60 min</span></div><small class="price-note">Precio referencial.</small></article>
+        </div>
+      </section>
+
+      <section id="agenda-ejemplo" class="section container demo-booking-section">
+        <div class="section-heading"><div><div class="eyebrow">ASÍ SE VERÍA UNA RESERVA</div><h2>Ejemplo de <em>agendamiento.</em></h2></div></div>
+        <div class="demo-booking-card">
+          <div class="demo-booking-copy"><h3>Elige un día y un horario</h3><p>Vista demostrativa para que conozcas el proceso de reserva. Los horarios que aparecen aquí son ficticios y no representan la disponibilidad real de un técnico.</p>
+            <label for="demoDate">Fecha de ejemplo</label><input id="demoDate" type="date" />
+            <label>Horarios de ejemplo</label>
+            <div class="demo-time-options" role="group" aria-label="Horarios de ejemplo">
+              <button type="button" class="demo-time" data-time="09:00">09:00 a. m.</button>
+              <button type="button" class="demo-time" data-time="11:00">11:00 a. m.</button>
+              <button type="button" class="demo-time" data-time="14:00">02:00 p. m.</button>
+              <button type="button" class="demo-time" data-time="16:00">04:00 p. m.</button>
+            </div>
+            <button id="demoBookingBtn" type="button" class="button button-primary" disabled>Ver resumen de ejemplo →</button>
+            <p id="demoBookingMessage" class="message" role="status">Selecciona una fecha y un horario para ver el resumen.</p>
+          </div>
+          <aside class="demo-summary"><span class="demo-summary-icon">◷</span><h3>Tu cita, paso a paso</h3><ol><li>Seleccionas el servicio que necesitas.</li><li>Eliges una fecha y una hora disponible.</li><li>Inicias sesión y envías tu solicitud.</li><li>El técnico revisa y confirma la atención.</li></ol><small>Esta demostración no registra citas ni realiza pagos.</small></aside>
+        </div>
       </section>
 
       <section id="contratar" class="booking-section container hidden">
