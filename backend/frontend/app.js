@@ -185,6 +185,42 @@ async function handleCreateOrder(event) {
   }
 }
 
+async function handleCreateSlot(event) {
+  event.preventDefault();
+  const button = event.submitter;
+  const startValue = $('#slotStart').value;
+  const endValue = $('#slotEnd').value;
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (!startValue || !endValue || Number.isNaN(start.getTime()) || end <= start) {
+    $('#slotMessage').textContent = 'Selecciona un rango de fechas y horas válido.';
+    $('#slotMessage').className = 'message error';
+    return;
+  }
+  button.disabled = true;
+  try {
+    await apiFetch('/api/admin/slots-citas/', {
+      method: 'POST',
+      body: JSON.stringify({
+        fecha: start.toISOString(),
+        hora_inicio: start.toISOString(),
+        hora_fin: end.toISOString(),
+        capacidad_maxima: Number($('#slotCapacity').value || 1),
+      }),
+    });
+    $('#slotForm').reset();
+    $('#slotCapacity').value = '1';
+    $('#slotMessage').textContent = 'Horario publicado. Ya está disponible para los clientes.';
+    $('#slotMessage').className = 'message success';
+    showToast('Horario publicado correctamente.');
+  } catch (error) {
+    $('#slotMessage').textContent = error.message;
+    $('#slotMessage').className = 'message error';
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function updateAuthUI() {
   const loggedIn = Boolean(state.token && state.user);
   $('#logoutBtn').classList.toggle('hidden', !loggedIn);
@@ -301,6 +337,7 @@ function init() {
   $('#loginForm').addEventListener('submit', handleLogin);
   $('#registerForm').addEventListener('submit', handleRegister);
   $('#orderForm').addEventListener('submit', handleCreateOrder);
+  $('#slotForm').addEventListener('submit', handleCreateSlot);
   $('#logoutBtn').addEventListener('click', () => logout());
   $('#refreshServicesBtn').addEventListener('click', loadServices);
   $('#saveApiBtn').addEventListener('click', () => {
