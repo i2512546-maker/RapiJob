@@ -165,6 +165,8 @@ async function loadBookingOptions() {
   }
 }
 
+window.addEventListener('rapijob:technician-selected', () => loadBookingOptions());
+
 async function loadOrders() {
   if (!state.token || !state.user) return;
   try {
@@ -190,6 +192,20 @@ async function loadOrders() {
         showToast('Solicitud aceptada correctamente.');
         await loadOrders();
       } catch (error) { showToast(error.message); button.disabled = false; }
+    }));
+    target.querySelectorAll('.start-order, .complete-order').forEach((button) => button.addEventListener('click', async () => {
+      button.disabled = true;
+      const action = button.classList.contains('start-order') ? 'iniciar' : 'completar';
+      try { await apiFetch(`/api/ordenes/${button.dataset.id}/${action}`, { method: 'PATCH' }); showToast(action === 'iniciar' ? 'Trabajo iniciado.' : 'Trabajo completado.'); await loadOrders(); }
+      catch (error) { showToast(error.message); button.disabled = false; }
+    }));
+    target.querySelectorAll('.review-order').forEach((form) => form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const values = Object.fromEntries(new FormData(form).entries());
+      values.calificacion_servicio = Number(values.calificacion_servicio);
+      values.calificacion_tecnico = Number(values.calificacion_tecnico);
+      try { await apiFetch(`/api/ordenes/${form.dataset.id}/resena`, { method: 'POST', body: JSON.stringify(values) }); showToast('Gracias por tu calificación.'); await loadOrders(); }
+      catch (error) { showToast(error.message); }
     }));
     target.querySelectorAll('.cancel-order').forEach((button) => button.addEventListener('click', async () => {
       if (!window.confirm('¿Deseas cancelar esta solicitud?')) return;
