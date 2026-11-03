@@ -4,10 +4,11 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from database import get_db
-from app.models.models import OrdenTrabajo, Servicio, SlotCita, PerfilTecnico, PerfilTecnicoPublico, UbicacionOrden, AdjuntoOrden, SlotTecnico
-from app.schemas.schemas import OrdenTrabajoCreate, OrdenTrabajoResponse
+from app.models.models import OrdenTrabajo, Servicio, SlotCita, PerfilTecnico, PerfilTecnicoPublico, UbicacionOrden, AdjuntoOrden, SlotTecnico, ResenaCalificacion
+from app.schemas.schemas import OrdenTrabajoCreate, OrdenTrabajoResponse, ResenaCreate
 from app.middleware.auth import get_current_user
 
 router = APIRouter(prefix="/api/ordenes", tags=["solicitudes"])
@@ -216,3 +217,32 @@ def completar_orden(orden_id: int, db: Session = Depends(get_db), current_user=D
     db.commit()
     db.refresh(orden)
     return orden
+
+
+@router.post("/{orden_id}/resena", status_code=status.HTTP_201_CREATED)
+def crear_resena(orden_id: int, data: ResenaCreate, db: Session = Depends(get_db),
+                 current_user=Depends(get_current_user)):
+    if current_user.tipo_usuario != "cliente":
+        raise HTTPException(status_code=403, detail="Solo el cliente puede calificar el servicio.")
+    orden = db.query(OrdenTrabajo).filter(OrdenTrabajo.id_orden == orden_id).first()
+    if not orden or orden.id_cliente != current_user.user_id:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada.")
+    if orden.estado_orden != "completada" or not orden.id_tecnico:
+        raise HTTPException(status_code=409, detail="Solo puedes calificar un trabajo completado.")
+    if db.query(ResenaCalificacion).filter_by(id_orden=orden_id).first():
+        raise HTTPException(status_code=409, detail="Esta solicitud ya tiene una calificación.")
+    review = ResenaCalificacion(
+        id_orden=orden_id, id_cliente=current_user.user_id, id_tecnico=orden.id_tecnico,
+        calificacion_servicio=data.calificacion_servicio,
+        calificacion_tecnico=data.calificacion_tecnico, comentario=data.comentario,
+    )
+    db.add(review)
+    db.flush()
+    profile = db.query(PerfilTecnico).filter_by(id_usuario=orden.id_tecnico).first()
+    if profile:
+        average = db.query(func.avg(ResenaCalificacion.calificacion_tecnico)).filter(
+            ResenaCalificacion.id_tecnico == orden.id_tecnico
+        ).scalar()
+        profile.calificacion_promedio = round(float(average or 0), 2)
+    db.commit()
+    return {"message": "Gracias por calificar el servicio.", "id_resena": review.id_resena}
