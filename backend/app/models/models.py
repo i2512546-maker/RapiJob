@@ -194,3 +194,25 @@ class PerfilTecnicoPublico(Base):
     disponible = Column(Boolean, nullable=False, default=True)
     aprobado = Column(Boolean, nullable=False, default=False)
     actualizado_en = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UbicacionOrden(Base):
+    __tablename__ = "ubicaciones_ordenes"
+
+    id_ubicacion = Column(Integer, primary_key=True, index=True)
+    id_orden = Column(Integer, ForeignKey("ordenes_trabajo.id_orden", ondelete="CASCADE"), unique=True, nullable=False)
+    latitud = Column(Numeric(10, 7), nullable=False)
+    longitud = Column(Numeric(10, 7), nullable=False)
+    direccion_formateada = Column(String(500))
+    fecha_registro = Column(DateTime, default=datetime.utcnow)
+
+
+class AdjuntoOrden(Base):
+    __tablename__ = "adjuntos_ordenes"
+
+    id_adjunto = Column(Integer, primary_key=True, index=True)
+    id_orden = Column(Integer, ForeignKey("ordenes_trabajo.id_orden", ondelete="CASCADE"), nullable=False, index=True)
+    nombre_archivo = Column(String(255), nullable=False)
+    tipo_contenido = Column(String(100), nullable=False)
+    contenido_base64 = Column(Text, nullable=False)
+    fecha_subida = Column(DateTime, default=datetime.utcnow)
