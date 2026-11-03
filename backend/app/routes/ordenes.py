@@ -1,11 +1,12 @@
 from datetime import datetime
+import base64
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from database import get_db
-from app.models.models import OrdenTrabajo, Servicio, SlotCita, PerfilTecnico, PerfilTecnicoPublico
+from app.models.models import OrdenTrabajo, Servicio, SlotCita, PerfilTecnico, PerfilTecnicoPublico, UbicacionOrden, AdjuntoOrden
 from app.schemas.schemas import OrdenTrabajoCreate, OrdenTrabajoResponse
 from app.middleware.auth import get_current_user
 
@@ -60,6 +61,14 @@ def crear_orden(orden: OrdenTrabajoCreate, db: Session = Depends(get_db), curren
     if slot.reservas_actuales >= slot.capacidad_maxima:
         slot.estado = "lleno"
     db.add(nueva)
+    db.flush()
+    if orden.latitud is not None and orden.longitud is not None:
+        db.add(UbicacionOrden(
+            id_orden=nueva.id_orden,
+            latitud=orden.latitud,
+            longitud=orden.longitud,
+            direccion_formateada=orden.ubicacion_servicio.strip(),
+        ))
     db.commit()
     db.refresh(nueva)
     return nueva
@@ -133,3 +142,40 @@ def cancelar_orden(orden_id: int, db: Session = Depends(get_db), current_user=De
     db.commit()
     db.refresh(orden)
     return orden
+
+
+@router.post("/{orden_id}/adjuntos", status_code=status.HTTP_201_CREATED)
+def subir_adjunto(orden_id: int, archivo: UploadFile = File(...),
+                  db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    orden = db.query(OrdenTrabajo).filter(OrdenTrabajo.id_orden == orden_id).first()
+    if not orden:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada.")
+    if orden.id_cliente != current_user.user_id and orden.id_tecnico != current_user.user_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para adjuntar archivos a esta solicitud.")
+    allowed = {"image/jpeg", "image/png", "image/webp"}
+    if archivo.content_type not in allowed:
+        raise HTTPException(status_code=415, detail="Solo se permiten imágenes JPG, PNG o WEBP.")
+    content = archivo.file.read(4 * 1024 * 1024 + 1)
+    if not content or len(content) > 4 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Cada imagen debe pesar como máximo 4 MB.")
+    item = AdjuntoOrden(
+        id_orden=orden.id_orden,
+        nombre_archivo=(archivo.filename or "evidencia").replace("/", "_").replace("\\", "_")[:255],
+        tipo_contenido=archivo.content_type,
+        contenido_base64=base64.b64encode(content).decode("ascii"),
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {"id_adjunto": item.id_adjunto, "nombre_archivo": item.nombre_archivo, "tipo_contenido": item.tipo_contenido}
+
+
+@router.get("/{orden_id}/adjuntos")
+def listar_adjuntos(orden_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    orden = db.query(OrdenTrabajo).filter(OrdenTrabajo.id_orden == orden_id).first()
+    if not orden:
+        raise HTTPException(status_code=404, detail="Solicitud no encontrada.")
+    if orden.id_cliente != current_user.user_id and orden.id_tecnico != current_user.user_id:
+        raise HTTPException(status_code=403, detail="No tienes permiso para ver estos archivos.")
+    return db.query(AdjuntoOrden.id_adjunto, AdjuntoOrden.nombre_archivo, AdjuntoOrden.tipo_contenido,
+                    AdjuntoOrden.fecha_subida).filter(AdjuntoOrden.id_orden == orden_id).all()
