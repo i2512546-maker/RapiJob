@@ -213,6 +213,7 @@ async function handleCreateOrder(event) {
       method: 'POST',
       body: JSON.stringify({
         id_servicio: Number($('#serviceSelect').value),
+        id_tecnico: $('#selectedTechnicianId')?.value ? Number($('#selectedTechnicianId').value) : null,
         id_slot_cita: Number($('#slotSelect').value),
         ubicacion_servicio: $('#ubicacion').value.trim(),
         descripcion_problema: $('#descripcion').value.trim(),
