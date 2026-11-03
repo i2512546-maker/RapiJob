@@ -216,3 +216,11 @@ class AdjuntoOrden(Base):
     tipo_contenido = Column(String(100), nullable=False)
     contenido_base64 = Column(Text, nullable=False)
     fecha_subida = Column(DateTime, default=datetime.utcnow)
+
+
+class SlotTecnico(Base):
+    __tablename__ = "slots_tecnicos"
+
+    id_asignacion = Column(Integer, primary_key=True, index=True)
+    id_slot = Column(Integer, ForeignKey("slots_citas.id_slot", ondelete="CASCADE"), unique=True, nullable=False)
+    id_tecnico = Column(Integer, ForeignKey("usuarios.id_usuario", ondelete="CASCADE"), nullable=False, index=True)
