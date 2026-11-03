@@ -1,104 +1,80 @@
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import timedelta
-from database import get_db
-from app.models.models import Usuario
-from app.schemas.schemas import UsuarioRegistro, UsuarioLogin, UsuarioResponse, Token
-from app.middleware.auth import (
-    hash_password, verify_password, create_access_token, 
-    get_current_user
-)
+
 from config import get_settings
+from database import get_db
+from app.models.models import Usuario, PerfilTecnico
+from app.schemas.schemas import UsuarioRegistro, UsuarioLogin, UsuarioResponse, Token
+from app.middleware.auth import hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 settings = get_settings()
 
 
 @router.post("/registro", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
-async def registro(usuario: UsuarioRegistro, db: Session = Depends(get_db)):
-    """Registrar nuevo usuario"""
-    
-    # Validar que el email no exista
-    user_existente = db.query(Usuario).filter(Usuario.email == usuario.email).first()
-    if user_existente:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El email ya está registrado"
-        )
-    
-    # Validar tipo de usuario
-    if usuario.tipo_usuario not in ['cliente', 'tecnico']:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tipo de usuario inválido"
-        )
-    
-    # Crear usuario
-    nuevo_usuario = Usuario(
-        nombre=usuario.nombre,
-        apellido=usuario.apellido,
-        email=usuario.email,
-        telefono=usuario.telefono,
+def registro(usuario: UsuarioRegistro, db: Session = Depends(get_db)):
+    if usuario.tipo_usuario not in ("cliente", "tecnico"):
+        raise HTTPException(status_code=400, detail="Selecciona cliente o técnico.")
+
+    email = str(usuario.email).strip().lower()
+    if db.query(Usuario).filter(Usuario.email == email).first():
+        raise HTTPException(status_code=409, detail="Este correo ya está registrado.")
+
+    if usuario.documento_identidad and db.query(Usuario).filter(
+        Usuario.documento_identidad == usuario.documento_identidad
+    ).first():
+        raise HTTPException(status_code=409, detail="El documento ya está registrado.")
+
+    nuevo = Usuario(
+        nombre=usuario.nombre.strip(),
+        apellido=usuario.apellido.strip(),
+        email=email,
+        telefono=(usuario.telefono or "").strip() or None,
         tipo_usuario=usuario.tipo_usuario,
-        documento_identidad=usuario.documento_identidad,
+        documento_identidad=(usuario.documento_identidad or "").strip() or None,
         contraseña_hash=hash_password(usuario.contraseña),
-        estado='activo'
+        estado="activo",
     )
-    
-    db.add(nuevo_usuario)
+    db.add(nuevo)
+    db.flush()
+
+    # Todo técnico necesita un perfil para poder recibir y aceptar solicitudes.
+    if nuevo.tipo_usuario == "tecnico":
+        db.add(PerfilTecnico(
+            id_usuario=nuevo.id_usuario,
+            experiencia_años=0,
+            tarifa_base=0,
+            zona_servicio="Por definir",
+            disponible=True,
+        ))
+
     db.commit()
-    db.refresh(nuevo_usuario)
-    
-    return nuevo_usuario
+    db.refresh(nuevo)
+    return nuevo
 
 
 @router.post("/login", response_model=Token)
-async def login(credenciales: UsuarioLogin, db: Session = Depends(get_db)):
-    """Login de usuario"""
-    
-    # Buscar usuario por email
-    usuario = db.query(Usuario).filter(Usuario.email == credenciales.email).first()
-    
+def login(credenciales: UsuarioLogin, db: Session = Depends(get_db)):
+    email = str(credenciales.email).strip().lower()
+    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+
     if not usuario or not verify_password(credenciales.contraseña, usuario.contraseña_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email o contraseña incorrectos"
-        )
-    
-    if usuario.estado != 'activo':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuario no activo"
-        )
-    
-    # Crear token
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={
-            "sub": usuario.id_usuario,
-            "email": usuario.email,
-            "tipo_usuario": usuario.tipo_usuario
-        },
-        expires_delta=access_token_expires
+        raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos.")
+    if usuario.estado != "activo":
+        raise HTTPException(status_code=403, detail="La cuenta no está activa.")
+
+    token = create_access_token(
+        data={"sub": str(usuario.id_usuario), "email": usuario.email, "tipo_usuario": usuario.tipo_usuario},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_id": usuario.id_usuario,
-        "tipo_usuario": usuario.tipo_usuario
-    }
+    return {"access_token": token, "token_type": "bearer", "user_id": usuario.id_usuario, "tipo_usuario": usuario.tipo_usuario}
 
 
 @router.get("/me", response_model=UsuarioResponse)
-async def get_current_user_info(
-    current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Obtener información del usuario actual"""
+def perfil_actual(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.id_usuario == current_user.user_id).first()
-    
     if not usuario:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
-    
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     return usuario
