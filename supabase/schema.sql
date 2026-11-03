@@ -45,6 +45,8 @@ create table if not exists public.reviews (
 create index if not exists service_requests_client_idx on public.service_requests(client_id,created_at desc);
 create index if not exists service_requests_technician_idx on public.service_requests(technician_id,status);
 create index if not exists technicians_search_idx on public.technician_profiles(city,approved,available);
+create or replace view public.public_technicians as select t.user_id,p.full_name,p.avatar_url,p.city as account_city,p.district as account_district,t.headline,t.description,t.years_experience,t.base_price,t.specialties,t.city,t.district,t.latitude,t.longitude,t.available from public.technician_profiles t join public.profiles p on p.id=t.user_id where t.approved=true and t.available=true;
+grant select on public.public_technicians to anon,authenticated;
 
 create or replace function public.is_admin() returns boolean language sql stable security definer set search_path=public
 as $$ select exists(select 1 from public.profiles where id=auth.uid() and role='admin') $$;
@@ -62,13 +64,19 @@ alter table public.technician_availability enable row level security;
 alter table public.reviews enable row level security;
 create policy "profiles own or admin read" on public.profiles for select using(id=auth.uid() or public.is_admin());
 create policy "profiles own client insert" on public.profiles for insert with check(id=auth.uid() and role='client');
-create policy "profiles own safe update" on public.profiles for update using(id=auth.uid() and role='client') with check(id=auth.uid() and role='client');
+create policy "profiles own safe update" on public.profiles for update using(id=auth.uid() and role in ('client','technician')) with check(id=auth.uid() and role in ('client','technician'));
+create or replace function public.protect_profile_role() returns trigger language plpgsql security definer set search_path=public as $ begin if old.role is distinct from new.role and not public.is_admin() then raise exception 'Solo administración puede cambiar roles.'; end if; return new; end $;
+drop trigger if exists protect_profile_role_trigger on public.profiles;
+create trigger protect_profile_role_trigger before update on public.profiles for each row execute procedure public.protect_profile_role();
 create policy "admin manage profiles" on public.profiles for all using(public.is_admin()) with check(public.is_admin());
 create policy "categories public read" on public.categories for select using(active or public.is_admin());
 create policy "admin manage categories" on public.categories for all using(public.is_admin()) with check(public.is_admin());
 create policy "approved technician directory" on public.technician_profiles for select using(approved=true or user_id=auth.uid() or public.is_admin());
 create policy "admin manage technician profiles" on public.technician_profiles for all using(public.is_admin()) with check(public.is_admin());
 create policy "technician manage own availability" on public.technician_profiles for update using(user_id=auth.uid() and exists(select 1 from public.profiles where id=auth.uid() and role='technician')) with check(user_id=auth.uid() and exists(select 1 from public.profiles where id=auth.uid() and role='technician'));
+create or replace function public.protect_technician_approval() returns trigger language plpgsql security definer set search_path=public as $ begin if old.approved is distinct from new.approved and not public.is_admin() then raise exception 'Solo administración puede aprobar técnicos.'; end if; return new; end $;
+drop trigger if exists protect_technician_approval_trigger on public.technician_profiles;
+create trigger protect_technician_approval_trigger before update on public.technician_profiles for each row execute procedure public.protect_technician_approval();
 create policy "clients create own requests" on public.service_requests for insert with check(client_id=auth.uid() and exists(select 1 from public.profiles where id=auth.uid() and role='client'));
 create policy "participants or admin read requests" on public.service_requests for select using(client_id=auth.uid() or technician_id=auth.uid() or public.is_admin());
 create policy "assigned technician or admin update requests" on public.service_requests for update using(technician_id=auth.uid() or public.is_admin()) with check(technician_id=auth.uid() or public.is_admin());
