@@ -79,8 +79,9 @@ Abre `http://localhost:10000`.
 - Para agregar a un profesional, primero debe crear una cuenta normal; el administrador la busca por correo y la registra como técnico.
 - No se inventan técnicos, calificaciones ni reseñas.
 - La plataforma no procesa pagos ni almacena datos bancarios.
-- Los estados se actualizan al interactuar con los controles del panel. La actualización en vivo con Supabase Realtime, notificaciones push, chat y pasarela de pagos son ampliaciones pendientes.
-- Las reseñas y disponibilidad tienen tablas y políticas preparadas; la interfaz para administrar horarios semanales y publicar reseñas debe ampliarse antes de considerarlas funciones terminadas.
+- Los estados se actualizan desde los controles del panel y se sincronizan mediante Supabase Realtime cuando la publicación está habilitada.
+- El cliente puede dejar una calificación de 1 a 5 y un comentario al terminar el servicio.
+- El técnico puede activar o pausar su perfil; la gestión de horarios semanales, notificaciones push, chat y pasarela de pagos siguen siendo ampliaciones pendientes.
 
 ## Seguridad
 - Row Level Security está habilitado en las tablas principales.
