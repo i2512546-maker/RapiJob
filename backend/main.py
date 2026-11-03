@@ -48,10 +48,10 @@ def initialize_database():
     db = SessionLocal()
     try:
         category_names = [
-            "Computadoras y laptops",
-            "Software y sistemas",
-            "Redes e internet",
-            "Mantenimiento preventivo",
+            "Electricistas", "Plomeros", "Gasfiteros", "Computadoras y laptops",
+            "Celulares", "Instaladores", "Hogar", "Refrigeración",
+            "Pintores", "Carpinteros", "Mecánicos", "Otros",
+            "Software y sistemas", "Redes e internet", "Mantenimiento preventivo",
         ]
         categories = {}
         for name in category_names:
@@ -72,9 +72,21 @@ def initialize_database():
             ("Eliminación de virus y malware", "Revisión y limpieza de amenazas y programas no deseados.", 70, 60, "Software y sistemas"),
             ("Instalación de SSD o memoria RAM", "Instalación física y comprobación de compatibilidad.", 60, 60, "Computadoras y laptops"),
             ("Configuración de Wi-Fi y red", "Configuración de router, conexión y solución de problemas de red.", 65, 60, "Redes e internet"),
+            ("Instalación eléctrica básica", "Revisión de tomacorrientes, interruptores e instalaciones domiciliarias.", 60, 60, "Electricistas"),
+            ("Reparación de fuga de agua", "Revisión de fugas y reparación básica de tuberías y griferías.", 45, 60, "Plomeros"),
+            ("Mantenimiento de conexiones de gas", "Revisión preventiva de conexiones y accesorios de gas.", 55, 60, "Gasfiteros"),
+            ("Diagnóstico de celular", "Evaluación inicial de fallas de software o hardware en celulares.", 35, 45, "Celulares"),
+            ("Instalación de equipos y accesorios", "Instalación y configuración de equipos y accesorios del hogar.", 50, 60, "Instaladores"),
+            ("Reparación general del hogar", "Atención de reparaciones menores en el hogar.", 45, 60, "Hogar"),
+            ("Mantenimiento de refrigeradora", "Revisión y mantenimiento básico de equipos de refrigeración.", 80, 90, "Refrigeración"),
+            ("Pintura de ambientes", "Preparación y pintura de paredes en ambientes pequeños.", 70, 120, "Pintores"),
+            ("Reparación de muebles", "Ajustes y reparaciones básicas de puertas y muebles de madera.", 65, 90, "Carpinteros"),
+            ("Diagnóstico mecánico básico", "Revisión inicial de fallas mecánicas comunes.", 60, 60, "Mecánicos"),
+            ("Servicio técnico personalizado", "Evaluación de una necesidad específica y propuesta de atención.", 30, 45, "Otros"),
         ]
-        if db.query(Servicio).count() == 0:
-            for name, description, price, duration, category_name in sample_services:
+        for name, description, price, duration, category_name in sample_services:
+            existing_service = db.query(Servicio).filter(Servicio.nombre_servicio == name).first()
+            if not existing_service:
                 db.add(Servicio(
                     id_categoria=categories[category_name].id_categoria,
                     nombre_servicio=name,
