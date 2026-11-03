@@ -408,6 +408,34 @@ function init() {
   if (!apiBaseInput) return;
   apiBaseInput.value = getApiBase();
   initTabs();
+  const demoDate = $('#demoDate');
+  const demoButton = $('#demoBookingBtn');
+  const demoMessage = $('#demoBookingMessage');
+  let demoTime = '';
+  if (demoDate) {
+    const today = new Date();
+    const localToday = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    demoDate.min = localToday;
+    demoDate.value = localToday;
+    const updateDemo = () => {
+      demoButton.disabled = !(demoDate.value && demoTime && demoDate.value >= localToday);
+      demoMessage.textContent = demoTime ? `Horario elegido: ${demoTime}. Pulsa el botón para ver el resumen.` : 'Selecciona uno de los horarios de ejemplo.';
+      demoMessage.className = 'message info';
+    };
+    document.querySelectorAll('.demo-time').forEach((timeButton) => timeButton.addEventListener('click', () => {
+      demoTime = timeButton.dataset.time;
+      document.querySelectorAll('.demo-time').forEach((item) => item.classList.toggle('selected', item === timeButton));
+      updateDemo();
+    }));
+    demoDate.addEventListener('change', updateDemo);
+    demoButton.addEventListener('click', () => {
+      if (!demoDate.value || !demoTime) return;
+      const [year, month, day] = demoDate.value.split('-').map(Number);
+      const dateLabel = new Date(year, month - 1, day).toLocaleDateString('es-PE', { dateStyle: 'long' });
+      demoMessage.textContent = `Ejemplo de cita: ${dateLabel} a las ${demoTime}. Para reservar de verdad, inicia sesión y selecciona un horario publicado por un técnico.`;
+      demoMessage.className = 'message success';
+    });
+  }
   $('#loginForm').addEventListener('submit', handleLogin);
   $('#registerForm').addEventListener('submit', handleRegister);
   $('#orderForm').addEventListener('submit', handleCreateOrder);
