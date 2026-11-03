@@ -135,6 +135,7 @@
       <section id="contratar" class="booking-section container hidden">
         <div class="section-heading"><div><div class="eyebrow">CONTRATAR UN TÉCNICO</div><h2>Solicita ayuda <em>en minutos.</em></h2></div></div>
         <form id="orderForm" class="booking-card">
+          <input type="hidden" id="selectedTechnicianId" />
           <div class="two-col"><label>Servicio<select id="serviceSelect" required><option value="">Selecciona un servicio</option></select></label><label>Horario disponible<select id="slotSelect" required><option value="">Cargando horarios...</option></select></label></div>
           <div class="two-col"><label>Ubicación<input id="ubicacion" required minlength="5" placeholder="Dirección donde se realizará el servicio" /></label><label>Precio estimado<small>Se muestra como referencia. No se realiza ningún cobro en la plataforma.</small></label></div>
           <label>¿Qué necesitas?<textarea id="descripcion" required minlength="10" placeholder="Describe el trabajo que necesitas..."></textarea></label>
@@ -146,6 +147,23 @@
 
       <section id="technicianPanel" class="section container hidden">
         <div class="section-heading"><div><div class="eyebrow">PANEL DEL TÉCNICO</div><h2>Solicitudes <em>disponibles.</em></h2></div><button id="refreshOrdersBtn" class="button button-outline">Actualizar ↻</button></div>
+        
+        <form id="technicianProfileForm" class="booking-card">
+          <h3>Completa tu perfil profesional</h3>
+          <p>Los datos serán revisados antes de publicar tu perfil en el directorio.</p>
+          <div class="two-col">
+            <label>Especialidad<select name="especialidad" required><option value="">Selecciona una especialidad</option><option>Electricistas</option><option>Plomeros</option><option>Gasfiteros</option><option>Computadoras</option><option>Celulares</option><option>Instaladores</option><option>Hogar</option><option>Refrigeración</option><option>Pintores</option><option>Carpinteros</option><option>Mecánicos</option><option>Otros</option></select></label>
+            <label>Ciudad<select name="ciudad" required><option>Huancayo</option><option>El Tambo</option><option>Chilca</option></select></label>
+          </div>
+          <div class="two-col"><label>Distrito o zona<input name="distrito" required minlength="2" placeholder="Ej. San Carlos" /></label><label>Tarifa desde (S/)<input name="tarifa_desde" type="number" min="0" step="0.50" required /></label></div>
+          <div class="two-col"><label>Años de experiencia<input name="experiencia_anios" type="number" min="0" max="60" required /></label><label>Teléfono de contacto<small>Se toma del registro de tu cuenta.</small></label></div>
+          <div class="two-col"><label>Latitud (opcional)<input name="latitud" type="number" step="any" min="-90" max="90" placeholder="-12.06" /></label><label>Longitud (opcional)<input name="longitud" type="number" step="any" min="-180" max="180" placeholder="-75.21" /></label></div>
+          <label>Descripción profesional<textarea name="descripcion_publica" maxlength="1500" placeholder="Cuéntales a tus clientes qué trabajos realizas..."></textarea></label>
+          <label class="filter-check"><input name="disponible" type="checkbox" checked /> Estoy disponible para recibir solicitudes</label>
+          <button type="submit" class="button button-primary">Guardar mi perfil</button>
+          <div id="technicianProfileMessage" class="message" role="status"></div>
+        </form>
+
         <form id="slotForm" class="booking-card">
           <h3>Publicar horarios disponibles</h3>
           <div class="two-col">
