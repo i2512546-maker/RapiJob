@@ -5,4 +5,4 @@ let client:SupabaseClient|null=null;
 export function supabase(config:PublicConfig){if(!client)client=createClient(config.supabaseUrl,config.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});return client;}
 export type Profile={id:string;full_name:string;email:string;phone:string|null;role:'client'|'technician'|'admin';city:string;district:string;avatar_url:string|null};
 export type Category={id:string;name:string;slug:string;icon:string};
-export type Job={id:string;description:string;address:string;city:string;district:string;scheduled_at:string;status:string;photos:string[];created_at:string;client_id:string;technician_id:string|null;category_id:string;profiles?:Profile;categories?:Category};
+export type Job={id:string;description:string;address:string;city:string;district:string;scheduled_at:string;status:string;photos:string[];created_at:string;client_id:string;technician_id:string|null;category_id:string;profiles?:Profile;categories?:Category;reviews?:{rating:number;comment:string}[]};
