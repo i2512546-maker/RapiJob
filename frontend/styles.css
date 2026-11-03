@@ -24,3 +24,34 @@ button:disabled, .button:disabled {
   opacity: .6;
   cursor: not-allowed;
 }
+
+
+/* Header de acceso visible y marca RapiJob azul/naranja */
+.brand-mark {
+  color: transparent;
+  background: linear-gradient(135deg, #1769d2 0 52%, #f28c28 52% 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  border: 2px solid #1769d2;
+  border-radius: 10px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1;
+}
+.brand > span:last-child > span { color: #f28c28; }
+.nav-login {
+  background: #1769d2;
+  color: #fff;
+  border: 2px solid #1769d2;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(23, 105, 210, .22);
+}
+.nav-login:hover { background: #1055ad; border-color: #1055ad; }
+@media (max-width: 560px) {
+  .nav-login { padding: 9px 12px; font-size: 12px; }
+}
