@@ -1,66 +1,33 @@
 import os
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from config import get_settings
-from database import Base, engine
-from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas
-from app.models.models import Servicio, MetodoPago, SlotCita
 
-# Configuración
+from config import get_settings
+from database import Base, engine, SessionLocal
+from app.routes import auth, servicios, ordenes, metodos_pago, slots_citas
+from app.models.models import CategoriaServicio, Servicio, SlotCita
+
 settings = get_settings()
 
-# Crear tablas si la base de datos está disponible
-try:
-    Base.metadata.create_all(bind=engine)
-    from database import SessionLocal
-    db = SessionLocal()
-    if db.query(Servicio).count() == 0:
-        db.add(Servicio(
-            nombre_servicio="Reparación eléctrica",
-            descripcion="Instalaciones, reparaciones y mantenimiento eléctrico.",
-            duracion_estimada_minutos=120,
-            precio_base=25,
-            estado="disponible",
-        ))
-    if db.query(MetodoPago).count() == 0:
-        db.add(MetodoPago(nombre_metodo="Pago en efectivo", comision_porcentaje=0, estado="activo"))
-    if db.query(SlotCita).count() == 0:
-        start = datetime.utcnow() + timedelta(days=1)
-        start = start.replace(hour=9, minute=0, second=0, microsecond=0)
-        db.add(SlotCita(
-            fecha=start,
-            hora_inicio=start,
-            hora_fin=start + timedelta(hours=2),
-            capacidad_maxima=10,
-            estado="disponible",
-        ))
-    db.commit()
-    db.close()
-except Exception as exc:  # pragma: no cover - startup safety for Render/managed DB
-    print(f"Advertencia: no se pudo inicializar la base de datos al arrancar: {exc}")
-
-# Crear aplicación
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
-    description="API de RapiJob - Plataforma de servicios técnicos"
+    description="RapiJob conecta clientes con técnicos para solicitar servicios.",
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Incluir rutas
 app.include_router(auth.router)
 app.include_router(servicios.router)
 app.include_router(ordenes.router)
@@ -72,31 +39,85 @@ if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="frontend-static")
 
 
+@app.on_event("startup")
+def initialize_database():
+    # Crea las tablas definidas por los modelos. Para bases existentes, aplicar
+    # las migraciones documentadas antes de desplegar esta versión.
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        category_names = [
+            "Computadoras y laptops",
+            "Software y sistemas",
+            "Redes e internet",
+            "Mantenimiento preventivo",
+        ]
+        categories = {}
+        for name in category_names:
+            category = db.query(CategoriaServicio).filter(
+                CategoriaServicio.nombre_categoria == name
+            ).first()
+            if not category:
+                category = CategoriaServicio(nombre_categoria=name, estado="activa")
+                db.add(category)
+                db.flush()
+            categories[name] = category
+
+        # Precios orientativos en soles peruanos; el técnico confirma el costo final.
+        sample_services = [
+            ("Diagnóstico de PC o laptop", "Evaluación inicial de fallas de hardware o software.", 45, 30, "Computadoras y laptops"),
+            ("Mantenimiento preventivo de PC", "Limpieza interna, revisión de componentes y optimización básica.", 90, 90, "Mantenimiento preventivo"),
+            ("Instalación de Windows", "Instalación y configuración del sistema operativo. Licencia no incluida.", 100, 120, "Software y sistemas"),
+            ("Eliminación de virus y malware", "Revisión y limpieza de amenazas y programas no deseados.", 70, 60, "Software y sistemas"),
+            ("Instalación de SSD o memoria RAM", "Instalación física y comprobación de compatibilidad.", 60, 60, "Computadoras y laptops"),
+            ("Configuración de Wi-Fi y red", "Configuración de router, conexión y solución de problemas de red.", 65, 60, "Redes e internet"),
+        ]
+        if db.query(Servicio).count() == 0:
+            for name, description, price, duration, category_name in sample_services:
+                db.add(Servicio(
+                    id_categoria=categories[category_name].id_categoria,
+                    nombre_servicio=name,
+                    descripcion=description,
+                    duracion_estimada_minutos=duration,
+                    precio_base=price,
+                    estado="disponible",
+                ))
+
+        if db.query(SlotCita).count() == 0:
+            now = datetime.utcnow()
+            for day_offset in range(1, 8):
+                day = (now + timedelta(days=day_offset)).date()
+                for hour in (9, 11, 14, 16):
+                    start = datetime.combine(day, datetime.min.time()).replace(hour=hour)
+                    db.add(SlotCita(
+                        fecha=start,
+                        hora_inicio=start,
+                        hora_fin=start + timedelta(hours=1),
+                        capacidad_maxima=1,
+                        reservas_actuales=0,
+                        estado="disponible",
+                    ))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 @app.get("/")
-async def root():
-    """Servir el frontend o mostrar información de la API."""
+def root():
     index_file = FRONTEND_DIR / "index.html"
     if index_file.exists():
         return FileResponse(index_file)
-    return {
-        "mensaje": "Bienvenido a RapiJob API",
-        "version": settings.VERSION,
-        "docs": "/docs"
-    }
+    return {"mensaje": "RapiJob API", "docs": "/docs"}
 
 
 @app.get("/health")
-async def health_check():
-    """Health check"""
+def health_check():
     return {"status": "ok"}
 
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", settings.PORT))
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=port,
-        reload=settings.DEBUG
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", settings.PORT)), reload=settings.DEBUG)

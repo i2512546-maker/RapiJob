@@ -8,3 +8,19 @@
 .button-primary{box-shadow:0 8px 18px rgba(242,140,40,.22)}.pulse-dot,.status-dot{background:var(--orange);box-shadow:0 0 0 5px rgba(242,140,40,.14)}
 .worker-avatar{background:#fff0df}.calendar-icon{background:#fff0df;color:var(--orange)}.how-section{background:#eaf1fa}
 .step-icon{box-shadow:0 8px 20px rgba(11,31,58,.08)}.floating-card{box-shadow:0 12px 30px rgba(11,31,58,.13)}
+
+
+/* RapiJob: importes referenciales en soles y solicitudes sin cobro en línea. */
+.price-note {
+  display: block;
+  margin-top: 0.55rem;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+#clientOrders { scroll-margin-top: 6rem; }
+.order-card .button { margin: 0.45rem 0.4rem 0 0; }
+button:disabled, .button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}

@@ -1,19 +1,20 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
     container_name: rapijob-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: \${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: plataforma_servicios_tecnicos
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/plataforma_servicios_tecnicos.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - rapijob-network
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p\$\$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
 
   backend:
     build:
@@ -21,22 +22,16 @@ services:
       dockerfile: Dockerfile
     container_name: rapijob-backend
     environment:
-      DATABASE_URL: mysql+mysqlconnector://root:root@mysql:3306/plataforma_servicios_tecnicos
-      SECRET_KEY: dev-secret-key-beta
-      DEBUG: "True"
+      DATABASE_URL: mysql+mysqlconnector://root:\${MYSQL_ROOT_PASSWORD:-root}@mysql:3306/plataforma_servicios_tecnicos
+      SECRET_KEY: \${SECRET_KEY:-change-this-secret-before-deploy}
+      DEBUG: "False"
+      PORT: 8000
     ports:
       - "8000:8000"
     depends_on:
-      - mysql
-    volumes:
-      - ./backend:/app
-    networks:
-      - rapijob-network
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   mysql_data:
-
-networks:
-  rapijob-network:
-    driver: bridge
