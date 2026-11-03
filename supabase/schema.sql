@@ -46,7 +46,8 @@ create index if not exists service_requests_client_idx on public.service_request
 create index if not exists service_requests_technician_idx on public.service_requests(technician_id,status);
 create index if not exists technicians_search_idx on public.technician_profiles(city,approved,available);
 create or replace view public.public_technicians as select t.user_id,p.full_name,p.avatar_url,p.phone,p.city as account_city,p.district as account_district,t.headline,t.description,t.years_experience,t.base_price,t.specialties,t.city,t.district,t.latitude,t.longitude,t.available from public.technician_profiles t join public.profiles p on p.id=t.user_id where t.approved=true and t.available=true;
-revoke all on public.public_technicians from anon;\ngrant select on public.public_technicians to authenticated;
+revoke all on public.public_technicians from anon;
+grant select on public.public_technicians to authenticated;
 
 create or replace function public.is_admin() returns boolean language sql stable security definer set search_path=public
 as $$ select exists(select 1 from public.profiles where id=auth.uid() and role='admin') $$;
