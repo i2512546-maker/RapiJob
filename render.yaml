@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: rapijob-web
+    name: rapijob-api
     env: docker
     dockerfilePath: ./backend/Dockerfile
     envVars:
